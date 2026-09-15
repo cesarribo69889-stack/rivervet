@@ -137,7 +137,7 @@ Lo usan Azure App Service y el pipeline de despliegue. No está sujeto al rate l
 {
   "success": true,
   "data": {
-    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "accessToken": "<JWT de 3 partes: cabecera.contenido.firma>",
     "expiraEn": 900,
     "usuario": { "id": 4, "nombre": "Rosa Huamán", "email": "recepcion@rivervet.pe", "rol": "recepcionista" }
   }
