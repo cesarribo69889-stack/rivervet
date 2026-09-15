@@ -1,0 +1,11 @@
+# Falsos positivos revisados a mano. gitleaks revisa TODO el historial, así que
+# lo que ya está en un commit se excluye por su huella (commit:archivo:regla:línea).
+# Antes de agregar una línea aquí: confirmar que NO es un secreto real. Si lo es,
+# no se ignora: se rota (ver backend/docs/DESPLIEGUE.md §9).
+
+# Token de EJEMPLO en la documentación: es solo la cabecera estándar de un JWT
+# ({"alg":"HS256","typ":"JWT"} en base64) seguida de "...". No firma nada.
+7594011d01a30541321484e0e355fcf24848fa4c:backend/docs/API.md:generic-api-key:140
+
+# Token FALSO de la prueba que verifica que el redactor de logs oculta los JWT.
+7594011d01a30541321484e0e355fcf24848fa4c:backend/tests/RiverVet.Pruebas/Unitarias/TextoYRedactorPruebas.cs:generic-api-key:73

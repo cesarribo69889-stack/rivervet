@@ -70,7 +70,7 @@ public class RedactorDatosPruebas
     [Fact]
     public void Redacta_JWT_Bearer_y_numeros_de_tarjeta_dentro_de_textos()
     {
-        RedactorDatos.RedactarTexto("token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.firmaFirmaFirma").ShouldBe("token=[JWT REDACTADO]");
+        RedactorDatos.RedactarTexto("token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.firmaFirmaFirma").ShouldBe("token=[JWT REDACTADO]"); // gitleaks:allow (token falso de prueba)
         RedactorDatos.RedactarTexto("Authorization: Bearer abc.def").ShouldBe("Authorization: Bearer [REDACTADO]");
         RedactorDatos.RedactarTexto("tarjeta 4111 1111 1111 1111 ok").ShouldBe("tarjeta [NUMERO REDACTADO] ok");
     }
