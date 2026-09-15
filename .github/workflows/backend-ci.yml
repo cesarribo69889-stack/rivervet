@@ -1,0 +1,286 @@
+# ═══════════════════════════════════════════════════════════════════════
+#  CI del BACKEND de RiverVet (ASP.NET Core Web API, .NET 10) — carpeta backend/
+#  Se ejecuta en cada push y en cada pull request hacia develop o main.
+#  Si cualquiera de los 3 jobs falla, el PR queda bloqueado (ver docs/CI.md
+#  para configurar la protección de ramas).
+# ═══════════════════════════════════════════════════════════════════════
+
+# Nombre que aparece en la pestaña "Actions" y en el badge del README.
+name: Backend CI
+
+# ¿Cuándo se ejecuta?
+on:
+  # Al subir commits a las ramas de integración y producción...
+  push:
+    branches: [develop, main]
+  # ...y al abrir o actualizar un pull request que apunte a ellas.
+  pull_request:
+    branches: [develop, main]
+
+# Mínimo privilegio: por defecto el token del workflow solo puede LEER el
+# código. Cada job pide explícitamente lo que necesite de más.
+permissions:
+  contents: read
+
+# Si subes otro commit a la misma rama mientras la CI corre, se cancela la
+# corrida vieja (ya no importa su resultado) y se ahorran minutos.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Variables comunes a todos los jobs.
+env:
+  # Versión del SDK de .NET (la misma que fija global.json).
+  DOTNET_VERSION: "10.0.x"
+  # No enviar telemetría ni mostrar el mensaje de bienvenida del SDK.
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+
+# Monorepo: todos los comandos "run" se ejecutan dentro de backend/.
+# (Las rutas de las acciones con "uses:" siguen siendo desde la raíz.)
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────
+  # JOB 1: backend — formato, compilación (con analizadores) y pruebas
+  #        con cobertura mínima del 60 %
+  # ─────────────────────────────────────────────────────────────────────
+  backend:
+    name: backend (formato + build + pruebas)
+    # Máquina virtual Linux limpia que GitHub crea y destruye en cada corrida.
+    # ASP.NET Core es multiplataforma: lo que se prueba aquí es lo mismo que
+    # corre en IIS o en Azure App Service.
+    runs-on: ubuntu-latest
+    # Si algo se cuelga, se corta a los 20 minutos en lugar de gastar 6 horas.
+    timeout-minutes: 20
+
+    # "Contenedor de servicio": un SQL Server real, vacío y DESECHABLE, que
+    # vive solo mientras dura este job. Las pruebas de integración crean en él
+    # la base rivervet_test, aplican las migraciones y cargan el seed.
+    services:
+      sqlserver:
+        # Imagen oficial de Microsoft.
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          # Aceptar la licencia es obligatorio para que la imagen arranque.
+          ACCEPT_EULA: "Y"
+          # Contraseña de 'sa' de ESTE contenedor efímero: no protege ningún
+          # dato real y desaparece al terminar el job. Por eso puede estar aquí
+          # en texto plano; las credenciales reales van en GitHub Secrets.
+          MSSQL_SA_PASSWORD: "RiverVet_CI_2026!x" # gitleaks:allow
+        # Publica el puerto 1433 del contenedor en la máquina del job.
+        ports:
+          - 1433:1433
+
+    env:
+      # Servidor para las pruebas de integración (ver tests/.../FabricaApi.cs).
+      RIVERVET_PRUEBAS_SQL: "Server=localhost,1433;User Id=sa;Password=RiverVet_CI_2026!x;Encrypt=True;TrustServerCertificate=True" # gitleaks:allow
+      # El migrador usa esta cadena para el comando "esperar".
+      ConnectionStrings__Migrador: "Server=localhost,1433;Database=master;User Id=sa;Password=RiverVet_CI_2026!x;Encrypt=True;TrustServerCertificate=True" # gitleaks:allow
+
+    steps:
+      # 1. Descarga el código del commit que se está probando.
+      - name: Descargar código
+        uses: actions/checkout@v5
+
+      # 2. Instala el SDK de .NET y guarda en caché los paquetes NuGet.
+      - name: Instalar .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # 3. Descarga los paquetes NuGet con las versiones EXACTAS del .csproj.
+      - name: Restaurar paquetes
+        run: dotnet restore RiverVet.slnx
+
+      # 4. Formato: falla si algún archivo no respeta .editorconfig
+      #    (el equivalente a Prettier en .NET).
+      - name: Formato (dotnet format)
+        run: dotnet format RiverVet.slnx --verify-no-changes --severity warn --no-restore
+
+      # 5. Compilación con TODOS los analizadores de calidad y seguridad como
+      #    ERRORES (TreatWarningsAsErrors en Directory.Build.props). Incluye
+      #    CA2100 (SQL concatenado) y CA5350/5351 (criptografía débil).
+      #    Es el equivalente a ESLint.
+      - name: Compilar (analizadores como errores)
+        run: dotnet build RiverVet.slnx --configuration Release --no-restore
+
+      # 6. El contenedor de SQL Server tarda unos segundos en aceptar
+      #    conexiones: se espera activamente (máximo 2 minutos).
+      - name: Esperar a SQL Server
+        run: dotnet run --project src/RiverVet.Migrador --configuration Release --no-build -- esperar
+
+      # 7. Pruebas unitarias + de integración con cobertura. Threshold=60:
+      #    si la cobertura de líneas baja del 60 %, este paso FALLA.
+      - name: Pruebas (xUnit) con cobertura mínima del 60 %
+        run: >
+          dotnet test RiverVet.slnx --configuration Release --no-build
+          --logger "trx;LogFileName=resultados.trx"
+          /p:CollectCoverage=true
+          /p:CoverletOutputFormat=cobertura
+          /p:CoverletOutput=../../coverage/
+          "/p:Include=[RiverVet.*]*"
+          "/p:Exclude=[RiverVet.Pruebas]*"
+          /p:Threshold=60 /p:ThresholdType=line /p:ThresholdStat=total
+
+      # 8. Guarda los resultados y la cobertura como archivos descargables
+      #    (evidencia para el informe). `if: always()` los sube aunque fallen.
+      - name: Publicar resultados y cobertura
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: pruebas-backend
+          path: |
+            backend/coverage/
+            backend/tests/**/TestResults/*.trx
+          retention-days: 14
+
+  # ─────────────────────────────────────────────────────────────────────
+  # JOB 2: seguridad — dependencias vulnerables, secretos filtrados y
+  #        análisis estático (corre EN PARALELO con los otros jobs)
+  # ─────────────────────────────────────────────────────────────────────
+  seguridad:
+    name: seguridad (NuGet + gitleaks + CodeQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      # CodeQL necesita publicar sus hallazgos en la pestaña "Security".
+      security-events: write
+      # gitleaks lee la lista de commits del pull request.
+      pull-requests: read
+
+    steps:
+      # fetch-depth: 0 descarga TODO el historial: gitleaks debe revisar
+      # también los commits viejos (un secreto borrado en un commit posterior
+      # sigue existiendo en el historial).
+      - name: Descargar código (historial completo)
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Instalar .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restaurar paquetes
+        run: dotnet restore RiverVet.slnx
+
+      # Falla si algún paquete NuGet (directo o transitivo) tiene una
+      # vulnerabilidad conocida de severidad ALTA o CRÍTICA.
+      - name: Paquetes vulnerables (severidad alta o mayor)
+        shell: bash
+        run: |
+          dotnet list RiverVet.slnx package --vulnerable --include-transitive | tee vulnerables.txt
+          if grep -qE "\b(High|Critical)\b" vulnerables.txt; then
+            echo "::error::Hay paquetes con vulnerabilidades altas o críticas"
+            exit 1
+          fi
+
+      # Busca contraseñas, tokens y claves en el código y en el historial.
+      - name: gitleaks (secretos filtrados)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          # Token temporal que GitHub crea para esta corrida.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # CodeQL publica sus hallazgos en la pestaña Security. En repositorios
+      # PRIVADOS de cuentas personales eso requiere GitHub Advanced Security,
+      # así que ahí se omite (con aviso). En repos públicos corre siempre.
+      - name: CodeQL — aviso (repositorio privado)
+        if: github.event.repository.private
+        run: |
+          echo "::notice::CodeQL omitido porque el repositorio es privado (requiere GitHub Advanced Security)."
+
+      # CodeQL: análisis estático de GitHub. Busca patrones de
+      # vulnerabilidades (inyección SQL, rutas sin validar, criptografía débil...).
+      - name: CodeQL — preparar
+        if: ${{ !github.event.repository.private }}
+        uses: github/codeql-action/init@v4
+        with:
+          languages: csharp
+          source-root: backend
+          # Analiza el código fuente sin necesidad de compilar.
+          build-mode: none
+          # Conjunto de reglas ampliado, orientado a seguridad.
+          queries: security-extended
+
+      - name: CodeQL — analizar
+        if: ${{ !github.event.repository.private }}
+        uses: github/codeql-action/analyze@v4
+
+  # ─────────────────────────────────────────────────────────────────────
+  # JOB 3: base-de-datos — las migraciones se aplican sobre una base LIMPIA
+  #        y el esquema queda consistente
+  # ─────────────────────────────────────────────────────────────────────
+  base-de-datos:
+    name: base de datos (migraciones)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: "RiverVet_CI_2026!x" # gitleaks:allow
+        ports:
+          - 1433:1433
+
+    env:
+      # El migrador lee esta variable (ConnectionStrings:Migrador).
+      ConnectionStrings__Migrador: "Server=localhost,1433;Database=rivervet_ci;User Id=sa;Password=RiverVet_CI_2026!x;Encrypt=True;TrustServerCertificate=True" # gitleaks:allow
+
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v5
+
+      - name: Instalar .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # Se compila el migrador una vez; los pasos siguientes usan --no-build.
+      - name: Compilar el migrador
+        run: dotnet build src/RiverVet.Migrador --configuration Release
+
+      - name: Esperar a SQL Server
+        run: dotnet run --project src/RiverVet.Migrador -c Release --no-build -- esperar
+
+      # Base vacía, recién creada.
+      - name: Crear base limpia
+        run: dotnet run --project src/RiverVet.Migrador -c Release --no-build -- crear-bd
+
+      # Aplica TODAS las migraciones en orden, cada una en su transacción.
+      - name: Aplicar migraciones (1ra vez)
+        run: dotnet run --project src/RiverVet.Migrador -c Release --no-build -- migrar
+
+      # Idempotencia: la segunda vez no debe aplicar nada ni fallar.
+      - name: Aplicar migraciones (2da vez, debe no hacer nada)
+        run: dotnet run --project src/RiverVet.Migrador -c Release --no-build -- migrar
+
+      # Tablas esperadas + restricciones críticas (doble agendamiento, stock
+      # negativo) + claves foráneas activas.
+      - name: Verificar esquema
+        run: dotnet run --project src/RiverVet.Migrador -c Release --no-build -- esquema
+
+      # El seed también debe poder correr dos veces.
+      - name: Cargar seed (dos veces)
+        run: |
+          dotnet run --project src/RiverVet.Migrador -c Release --no-build -- seed
+          dotnet run --project src/RiverVet.Migrador -c Release --no-build -- seed
+
+      # Prueba NEGATIVA: si alguien edita una migración ya aplicada, el
+      # migrador DEBE negarse. Si no falla, algo está mal en el migrador.
+      - name: El migrador detecta una migración editada
+        run: |
+          echo "-- cambio no autorizado" >> database/migraciones/0001_esquema_inicial.sql
+          if dotnet run --project src/RiverVet.Migrador -c Release --no-build -- migrar; then
+            echo "::error::El migrador NO detectó que se editó una migración ya aplicada"
+            exit 1
+          fi
+          git checkout -- database/migraciones/0001_esquema_inicial.sql
+          echo "OK: el migrador rechazó la migración editada."

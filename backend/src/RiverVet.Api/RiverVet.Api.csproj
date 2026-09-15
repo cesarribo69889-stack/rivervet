@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- API: controladores, middlewares, configuración. Se ejecuta con IIS Express
+       desde Visual Studio (Properties/launchSettings.json) o con Kestrel. -->
+
+  <PropertyGroup>
+    <!-- Los secretos de desarrollo (cadena de conexión, JWT) viven FUERA del
+         repositorio, en %APPDATA%\Microsoft\UserSecrets\rivervet-dev\ .
+         Los configura el script configurar-desarrollo.ps1. -->
+    <UserSecretsId>rivervet-dev</UserSecretsId>
+    <!-- Hospedaje dentro del proceso de IIS / IIS Express (el más rápido). -->
+    <AspNetCoreHostingModel>InProcess</AspNetCoreHostingModel>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- La configuración de desarrollo no viaja al paquete de producción. -->
+    <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RiverVet.Aplicacion\RiverVet.Aplicacion.csproj" />
+    <ProjectReference Include="..\RiverVet.Infraestructura\RiverVet.Infraestructura.csproj" />
+  </ItemGroup>
+
+</Project>

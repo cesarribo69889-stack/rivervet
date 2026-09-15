@@ -1,0 +1,14 @@
+# Raíz del monorepo. Cada proyecto tiene además su propio .gitignore
+# (backend/.gitignore y frontend/.gitignore).
+
+# Primera versión del backend (Node.js): se conserva solo en la PC, no se versiona.
+_respaldo-backend-node/
+
+# Carpetas que generan Visual Studio y los pipelines de despliegue.
+.vs/
+publicacion/
+version-anterior/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db

@@ -1,0 +1,199 @@
+# ═══════════════════════════════════════════════════════════════════════
+#  CD del BACKEND de RiverVet — despliegue continuo a producción
+#
+#  Se dispara SOLO cuando la CI terminó en verde después de un merge a main.
+#  Antes de ejecutarse espera la APROBACIÓN MANUAL de un revisor (regla del
+#  environment "produccion" en GitHub → ver docs/DESPLIEGUE.md).
+#
+#  Orden:  1) migraciones en Azure SQL   2) API en Azure App Service (IIS)
+#          3) health check (60 s)        4) si falla: rollback + aviso
+#  (El frontend tiene su propio CD hacia Vercel: frontend-cd.yml.)
+#
+#  Mientras no exista la variable AZURE_WEBAPP_NAME (Azure aún no
+#  configurado), el job se OMITE: así el repositorio puede estar en GitHub
+#  sin que cada merge a main termine en un despliegue fallido.
+# ═══════════════════════════════════════════════════════════════════════
+
+name: Backend CD
+
+on:
+  # Cuando el workflow "Backend CI" TERMINA en la rama main...
+  workflow_run:
+    workflows: [Backend CI]
+    types: [completed]
+    branches: [main]
+  # ...o a mano desde la pestaña Actions (p. ej. para reintentar).
+  workflow_dispatch:
+
+# Mínimo privilegio por defecto; el job pide lo que necesita.
+permissions:
+  contents: read
+
+# Nunca dos despliegues a la vez, y nunca se cancela uno a medias.
+concurrency:
+  group: cd-produccion-backend
+  cancel-in-progress: false
+
+env:
+  DOTNET_VERSION: "10.0.x"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  # URL pública de la API (variable del repositorio, no es secreta).
+  URL_API: ${{ vars.URL_API_PRODUCCION }}
+
+# Monorepo: todos los comandos "run" se ejecutan dentro de backend/.
+# (Las rutas de las acciones con "uses:" siguen siendo desde la raíz.)
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  desplegar:
+    name: desplegar a producción
+    # Solo si la CI salió en verde y fue por un push (merge) a main, no por
+    # un pull request. El disparo manual (workflow_dispatch) también vale.
+    if: >-
+      vars.AZURE_WEBAPP_NAME != '' && (
+        github.event_name == 'workflow_dispatch' ||
+        (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # Environment "produccion": exige aprobación manual de un revisor y guarda
+    # los secretos de producción (solo este job, ya aprobado, puede leerlos).
+    environment:
+      name: produccion
+      url: ${{ vars.URL_API_PRODUCCION }}/api/health
+
+    permissions:
+      contents: read
+      # Leer los artefactos de despliegues anteriores (para el rollback).
+      actions: read
+      # Abrir un issue de aviso si el despliegue falla.
+      issues: write
+
+    steps:
+      # 1. Exactamente el commit que pasó la CI (no "lo último de main").
+      - name: Descargar el commit aprobado por la CI
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Instalar .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # 2. Paquete de la API para IIS. UseAppHost=false: el web.config
+      #    generado arranca la app con "dotnet RiverVet.Api.dll".
+      - name: Publicar la API (Release)
+        run: dotnet publish src/RiverVet.Api --configuration Release --output publicacion -p:UseAppHost=false
+
+      - name: Compilar el migrador
+        run: dotnet build src/RiverVet.Migrador --configuration Release
+
+      # 3. Migraciones. Primero se VERIFICA: si alguien editó una migración ya
+      #    aplicada en producción, el despliegue se detiene aquí, antes de
+      #    tocar nada. La cadena usa el usuario rivervet_migrador (no la app).
+      - name: Migraciones — verificar
+        env:
+          ConnectionStrings__Migrador: ${{ secrets.AZURE_SQL_MIGRADOR_CONNECTION_STRING }}
+          DOTNET_ENVIRONMENT: Production
+        run: dotnet run --project src/RiverVet.Migrador --configuration Release --no-build -- verificar
+
+      - name: Migraciones — aplicar en Azure SQL
+        env:
+          ConnectionStrings__Migrador: ${{ secrets.AZURE_SQL_MIGRADOR_CONNECTION_STRING }}
+          DOTNET_ENVIRONMENT: Production
+        run: dotnet run --project src/RiverVet.Migrador --configuration Release --no-build -- migrar
+
+      # 4. Se anota cuál fue el último despliegue exitoso ANTES de desplegar:
+      #    su paquete es el que se restaura si esta versión falla.
+      - name: Ubicar el despliegue anterior (para rollback)
+        id: anterior
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ID=$(gh run list --repo "${{ github.repository }}" --workflow backend-cd.yml --status success --limit 1 \
+                 --json databaseId --jq '.[0].databaseId // empty')
+          echo "id=$ID" >> "$GITHUB_OUTPUT"
+          echo "Despliegue anterior: ${ID:-ninguno (primer despliegue)}"
+
+      # 5. Despliegue en Azure App Service (Windows = IIS, igual que IIS
+      #    Express en desarrollo). El perfil de publicación es un secreto.
+      - name: Desplegar la API en Azure App Service
+        id: despliegue
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: backend/publicacion
+
+      # 6. Health check: GET /api/health debe responder 200 (incluye la
+      #    conexión a la base de datos) en máximo 60 segundos.
+      - name: Health check (máximo 60 s)
+        run: |
+          for intento in $(seq 1 12); do
+            if curl --fail --silent --show-error --max-time 5 "$URL_API/api/health"; then
+              echo ""; echo "OK: la API responde 200."; exit 0
+            fi
+            echo "Intento $intento/12 sin respuesta 200; reintento en 5 s..."
+            sleep 5
+          done
+          echo "::error::La API no respondió 200 en /api/health dentro de 60 segundos"
+          exit 1
+
+      # 7. Se guarda el paquete que funcionó: será el "anterior" del próximo
+      #    despliegue si ese falla.
+      - name: Guardar el paquete desplegado
+        uses: actions/upload-artifact@v5
+        with:
+          name: api-publicada
+          path: backend/publicacion
+          retention-days: 30
+
+      # ── ROLLBACK: solo si falló el despliegue o el health check ──────────
+      # (Si fallaron las migraciones, la API no se tocó: no hay qué revertir.)
+      # Las migraciones NO se revierten automáticamente: por eso cada cambio
+      # de base de datos debe ser compatible con la versión anterior de la API
+      # (primero se agrega, y recién en un despliegue posterior se quita).
+      - name: Rollback — descargar la versión anterior
+        if: failure() && steps.despliegue.outcome != 'skipped' && steps.anterior.outputs.id != ''
+        uses: actions/download-artifact@v5
+        with:
+          name: api-publicada
+          path: version-anterior
+          run-id: ${{ steps.anterior.outputs.id }}
+          github-token: ${{ github.token }}
+
+      - name: Rollback — volver a desplegar la versión anterior
+        if: failure() && steps.despliegue.outcome != 'skipped' && steps.anterior.outputs.id != ''
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: version-anterior
+
+      - name: Rollback — health check de la versión anterior
+        if: failure() && steps.despliegue.outcome != 'skipped' && steps.anterior.outputs.id != ''
+        run: |
+          for intento in $(seq 1 12); do
+            curl --fail --silent --max-time 5 "$URL_API/api/health" && { echo ""; echo "Versión anterior restaurada."; exit 0; }
+            sleep 5
+          done
+          echo "::error::Tampoco responde la versión anterior: revisar Azure a mano"
+          exit 1
+
+      # Aviso visible para todo el equipo: un issue en el repositorio.
+      - name: Avisar al equipo
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          gh issue create --repo "${{ github.repository }}" \
+            --title "Falló el despliegue a producción (${COMMIT::7})" \
+            --body "El workflow CD falló. Detalle: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          - Paso de rollback ejecutado: ${{ steps.despliegue.outcome != 'skipped' && steps.anterior.outputs.id != '' }}
+          - Revisa el log del job y docs/DESPLIEGUE.md (sección 'Si el despliegue falla')."

@@ -1,0 +1,58 @@
+# Dependabot revisa cada semana si hay versiones nuevas (sobre todo parches
+# de seguridad) y abre un pull request por cada actualización. Ese PR pasa por
+# la CI como cualquier otro: si las pruebas fallan, no se mezcla.
+# Monorepo: una entrada por carpeta (backend/ y frontend/).
+version: 2
+updates:
+  # Paquetes NuGet de todos los proyectos de la solución del backend.
+  - package-ecosystem: nuget
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: America/Lima
+    # Los PR van a develop, nunca directo a producción.
+    target-branch: develop
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps-backend)"
+    # Agrupa los paquetes de pruebas en un solo PR.
+    groups:
+      pruebas:
+        patterns:
+          [
+            "xunit*",
+            "Shouldly",
+            "coverlet*",
+            "Microsoft.NET.Test.Sdk",
+            "Microsoft.AspNetCore.Mvc.Testing",
+          ]
+
+  # Paquetes npm del frontend.
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: America/Lima
+    target-branch: develop
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps-frontend)"
+    groups:
+      desarrollo:
+        dependency-type: development
+
+  # Las propias acciones de GitHub (actions/checkout, codeql-action...).
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: America/Lima
+    target-branch: develop
+    commit-message:
+      prefix: "chore(ci)"

@@ -1,0 +1,40 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RiverVet.Api/RiverVet.Api.csproj" />
+    <Project Path="src/RiverVet.Aplicacion/RiverVet.Aplicacion.csproj" />
+    <Project Path="src/RiverVet.Dominio/RiverVet.Dominio.csproj" />
+    <Project Path="src/RiverVet.Infraestructura/RiverVet.Infraestructura.csproj" />
+    <Project Path="src/RiverVet.Migrador/RiverVet.Migrador.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/RiverVet.Pruebas/RiverVet.Pruebas.csproj" />
+  </Folder>
+  <Folder Name="/database/">
+    <File Path="database/migraciones/0001_esquema_inicial.sql" />
+    <File Path="database/migraciones/0002_citas_historial_vacunas.sql" />
+    <File Path="database/migraciones/0003_productos_ventas.sql" />
+    <File Path="database/migraciones/0004_pagos_notificaciones.sql" />
+    <File Path="database/seed/datos_desarrollo.sql" />
+    <File Path="database/local/01_crear_bd_y_usuarios.sql" />
+    <File Path="database/local/02_permisos_app.sql" />
+    <File Path="database/azure/crear_usuarios_azure.sql" />
+  </Folder>
+  <Folder Name="/docs/">
+    <File Path="docs/API.md" />
+    <File Path="docs/MODELO_DATOS.md" />
+    <File Path="docs/ARQUITECTURA.md" />
+    <File Path="docs/INSTALACION.md" />
+    <File Path="docs/INTEGRACION_LOCAL.md" />
+    <File Path="docs/CI.md" />
+    <File Path="docs/DESPLIEGUE.md" />
+    <File Path="docs/SEGURIDAD.md" />
+    <File Path="docs/CICD.md" />
+  </Folder>
+  <Folder Name="/raiz/">
+    <File Path="README.md" />
+    <File Path="configurar-desarrollo.ps1" />
+    <File Path="herramientas/simular-webhook.ps1" />
+    <File Path="../.github/workflows/backend-ci.yml" />
+    <File Path="../.github/workflows/backend-cd.yml" />
+  </Folder>
+</Solution>

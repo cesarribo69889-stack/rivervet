@@ -1,0 +1,30 @@
+<Project>
+
+  <!-- Propiedades comunes a TODOS los proyectos de la solución RiverVet. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Calidad: los avisos del compilador y de los analizadores ROMPEN la
+         compilación. Es el equivalente a ESLint en .NET: la CI falla si hay uno. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+
+    <!-- Auditoría de vulnerabilidades en dependencias NuGet. Quedan como AVISO
+         (no error) para no bloquear el desarrollo; la CI las revisa aparte con
+         el comando dotnet list package (opción vulnerable). -->
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+    <WarningsNotAsErrors>NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
+
+    <!-- Globalización real: formatos es-PE y zona horaria America/Lima. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+</Project>

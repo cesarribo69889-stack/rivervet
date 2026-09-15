@@ -1,0 +1,7 @@
+# Fin de línea LF para todo el texto del repositorio.
+# Importante para las migraciones: su hash se calcula sobre el contenido, y si
+# Windows las guardara con CRLF y Linux (la CI) con LF, el runner creería que
+# alguien editó una migración ya aplicada. El runner además normaliza CRLF -> LF
+# antes de calcular el hash, como segunda línea de defensa.
+* text=auto eol=lf
+*.sql text eol=lf

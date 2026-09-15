@@ -1,0 +1,14 @@
+[*.cs]
+# En las pruebas se permiten nombres descriptivos con guion bajo:
+#   Login_ConPasswordIncorrecta_Devuelve401
+dotnet_diagnostic.CA1707.severity = none
+# Las pruebas no son una librería reutilizable: ConfigureAwait no aplica.
+dotnet_diagnostic.CA2007.severity = none
+# Los datos de prueba se crean con literales; no hace falta IFormatProvider.
+dotnet_diagnostic.CA1305.severity = none
+# xUnit necesita clases públicas; los campos de prueba no requieren sealed.
+dotnet_diagnostic.CA1852.severity = none
+# URIs como texto son lo natural en pruebas HTTP (HttpClient.GetAsync("/api/...")).
+dotnet_diagnostic.CA2234.severity = none
+dotnet_diagnostic.CA1054.severity = none
+dotnet_diagnostic.CA1056.severity = none

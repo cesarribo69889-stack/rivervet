@@ -1,0 +1,82 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{json,yml,yaml,md,csproj,props,slnx,config}]
+indent_size = 2
+
+[*.cs]
+# --- Estilo C# ---------------------------------------------------------------
+csharp_using_directive_placement = outside_namespace:warning
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_prefer_braces = true:warning
+csharp_style_var_when_type_is_apparent = true:suggestion
+dotnet_sort_system_directives_first = true
+dotnet_style_require_accessibility_modifiers = for_non_interface_members:warning
+dotnet_style_readonly_field = true:warning
+
+# --- Nomenclatura ------------------------------------------------------------
+# Constantes en PascalCase (va primero: tiene prioridad sobre la regla de campos).
+dotnet_naming_rule.constantes.severity = warning
+dotnet_naming_rule.constantes.symbols = constantes
+dotnet_naming_rule.constantes.style = pascal
+dotnet_naming_symbols.constantes.applicable_kinds = field, local
+dotnet_naming_symbols.constantes.applicable_accessibilities = *
+dotnet_naming_symbols.constantes.required_modifiers = const
+dotnet_naming_style.pascal.capitalization = pascal_case
+
+# Campos privados con guion bajo: _usuarios, _opciones.
+dotnet_naming_rule.campos_privados.severity = warning
+dotnet_naming_rule.campos_privados.symbols = campos_privados
+dotnet_naming_rule.campos_privados.style = prefijo_guion_bajo
+dotnet_naming_symbols.campos_privados.applicable_kinds = field
+dotnet_naming_symbols.campos_privados.applicable_accessibilities = private
+dotnet_naming_style.prefijo_guion_bajo.required_prefix = _
+dotnet_naming_style.prefijo_guion_bajo.capitalization = camel_case
+
+# --- Analizadores de seguridad: ERROR, no advertencia -------------------------
+# CA2100: SQL armado concatenando texto (posible inyección SQL).
+dotnet_diagnostic.CA2100.severity = error
+# CA3001/CA3003/CA3006: inyección SQL, de rutas y de comandos.
+dotnet_diagnostic.CA3001.severity = error
+dotnet_diagnostic.CA3003.severity = error
+dotnet_diagnostic.CA3006.severity = error
+# CA5350/CA5351: algoritmos criptográficos débiles (SHA1, MD5, DES).
+dotnet_diagnostic.CA5350.severity = error
+dotnet_diagnostic.CA5351.severity = error
+# CA5394: generador de números aleatorios NO criptográfico.
+dotnet_diagnostic.CA5394.severity = error
+
+# --- Reglas relajadas a propósito (con justificación) ------------------------
+# CA1848: exige delegados LoggerMessage en toda llamada de log. Es una
+# optimización para rutas calientes; en un sistema de gestión solo resta
+# legibilidad.
+dotnet_diagnostic.CA1848.severity = suggestion
+# CA1873: evitar evaluar argumentos de log costosos. Mismo motivo que CA1848.
+dotnet_diagnostic.CA1873.severity = suggestion
+# CA1515: "haz internos los tipos públicos". Los controladores, DTOs y
+# servicios deben ser públicos para ASP.NET Core, xUnit y WebApplicationFactory.
+dotnet_diagnostic.CA1515.severity = none
+# CA1707: guiones bajos en identificadores. Solo se permite en las pruebas
+# (nombres como Login_ConPasswordIncorrecta_Devuelve401), ver tests/.editorconfig.
+# CA1861: arreglos constantes como argumentos; irrelevante fuera de rutas calientes.
+dotnet_diagnostic.CA1861.severity = suggestion
+# CA1305/CA1307/CA1309/CA1310: exigir IFormatProvider/StringComparison en cada
+# llamada. Se usan de forma explícita donde importa (formatos y comparaciones
+# de seguridad); en el resto del código añaden ruido.
+dotnet_diagnostic.CA1305.severity = suggestion
+dotnet_diagnostic.CA1307.severity = suggestion
+dotnet_diagnostic.CA1309.severity = suggestion
+dotnet_diagnostic.CA1310.severity = suggestion
+# CA1812: clases internas "nunca instanciadas": falso positivo con la
+# inyección de dependencias.
+dotnet_diagnostic.CA1812.severity = none
+
+[*.sql]
+end_of_line = lf

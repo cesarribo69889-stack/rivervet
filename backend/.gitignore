@@ -1,0 +1,29 @@
+# Compilación de .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+coverage/
+*.coverage
+coverage.*.xml
+coverage.json
+
+# Logs (pueden contener IPs y trazas)
+logs/
+*.log
+
+# Secretos: NUNCA se suben. En desarrollo se usan los "User Secrets" de .NET
+# (fuera del repositorio) y en producción variables de entorno.
+.env
+.env.*
+appsettings.*.local.json
+secrets.json
+
+# Publicación
+publish/
+*.pubxml.user
+
+.DS_Store
+Thumbs.db

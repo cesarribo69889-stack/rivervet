@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Dominio: constantes y reglas del negocio. No depende de NADA. -->
+
+</Project>

@@ -1,0 +1,145 @@
+# ═══════════════════════════════════════════════════════════════════════
+#  CI del FRONTEND de RiverVet (Vue 3 + Vite) — carpeta frontend/
+#  Se ejecuta en cada push y en cada pull request hacia develop o main.
+#  Si un job falla, el pull request queda bloqueado (protección de ramas).
+# ═══════════════════════════════════════════════════════════════════════
+
+name: Frontend CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+# Mínimo privilegio: el token del workflow solo puede leer el código.
+permissions:
+  contents: read
+
+# Un commit nuevo en la misma rama cancela la corrida anterior.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '24'
+
+# Monorepo: todos los comandos "run" se ejecutan dentro de frontend/.
+# (Las rutas de las acciones con "uses:" siguen siendo desde la raíz.)
+defaults:
+  run:
+    working-directory: frontend
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────
+  # JOB 1: frontend — estilo, lint, pruebas y compilación
+  # ─────────────────────────────────────────────────────────────────────
+  frontend:
+    name: frontend (lint + pruebas + build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Descarga el código del commit.
+      - name: Descargar código
+        uses: actions/checkout@v5
+
+      # Node + caché de npm.
+      - name: Instalar Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # Instala exactamente lo que dice package-lock.json.
+      - name: Instalar dependencias
+        run: npm ci
+
+      # ESLint incluye reglas de seguridad: prohíbe v-html, localStorage,
+      # sessionStorage y eval.
+      - name: ESLint
+        run: npm run lint
+
+      # Falla si algún archivo no respeta el formato de Prettier.
+      - name: Prettier
+        run: npm run format:check
+
+      # Pruebas de Vitest (utilidades, interceptor de axios, store, guards,
+      # componentes, vistas y revisión estática de seguridad).
+      - name: Pruebas (Vitest) con cobertura
+        run: npm run test:cobertura
+
+      # Verifica que la aplicación COMPILA de verdad para producción.
+      - name: Compilar (vite build)
+        run: npm run build
+
+      # Guarda la carpeta compilada y la cobertura como archivos de la
+      # corrida (evidencia; también sirve para revisar qué se desplegaría).
+      - name: Publicar build y cobertura
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: frontend-build-y-cobertura
+          path: |
+            frontend/dist/
+            frontend/coverage/
+          retention-days: 14
+
+  # ─────────────────────────────────────────────────────────────────────
+  # JOB 2: seguridad — en paralelo con el anterior
+  # ─────────────────────────────────────────────────────────────────────
+  seguridad:
+    name: seguridad (audit + gitleaks + CodeQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      # CodeQL publica sus hallazgos en la pestaña "Security".
+      security-events: write
+      # gitleaks lee los commits del pull request.
+      pull-requests: read
+    steps:
+      # Historial completo: gitleaks revisa también los commits viejos.
+      - name: Descargar código (historial completo)
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Instalar Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # Dependencias con vulnerabilidades conocidas de severidad alta o crítica.
+      - name: npm audit (severidad alta o mayor)
+        run: npm audit --audit-level=high
+
+      # Secretos filtrados (claves, tokens, contraseñas) en código e historial.
+      # Recordatorio: TODO lo que empieza con VITE_ termina en el navegador.
+      - name: gitleaks (secretos filtrados)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # CodeQL publica sus hallazgos en la pestaña Security. En repositorios
+      # PRIVADOS de cuentas personales eso requiere GitHub Advanced Security,
+      # así que ahí se omite (con aviso). En repos públicos corre siempre.
+      - name: CodeQL — aviso (repositorio privado)
+        if: github.event.repository.private
+        run: |
+          echo "::notice::CodeQL omitido porque el repositorio es privado (requiere GitHub Advanced Security)."
+
+      # Análisis estático de vulnerabilidades (XSS, redirecciones abiertas...).
+      - name: CodeQL — preparar
+        if: ${{ !github.event.repository.private }}
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+          source-root: frontend
+          queries: security-extended
+
+      - name: CodeQL — analizar
+        if: ${{ !github.event.repository.private }}
+        uses: github/codeql-action/analyze@v4
