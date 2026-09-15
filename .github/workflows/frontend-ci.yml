@@ -11,6 +11,8 @@ on:
     branches: [develop, main]
   pull_request:
     branches: [develop, main]
+  # ...o a mano desde la pestaña Actions (botón "Run workflow").
+  workflow_dispatch:
 
 # Mínimo privilegio: el token del workflow solo puede leer el código.
 permissions:
