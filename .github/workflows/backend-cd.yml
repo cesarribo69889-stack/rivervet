@@ -7,7 +7,6 @@
 #
 #  Orden:  1) migraciones en Azure SQL   2) API en Azure App Service (IIS)
 #          3) health check (60 s)        4) si falla: rollback + aviso
-#  (El frontend tiene su propio CD hacia Vercel: frontend-cd.yml.)
 #
 #  Mientras no exista la variable AZURE_WEBAPP_NAME (Azure aún no
 #  configurado), el job se OMITE: así el repositorio puede estar en GitHub

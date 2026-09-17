@@ -1,5 +1,5 @@
-# Raíz del monorepo. Cada proyecto tiene además su propio .gitignore
-# (backend/.gitignore y frontend/.gitignore).
+# Raíz del repositorio. El backend tiene además su propio .gitignore
+# (backend/.gitignore).
 
 # Primera versión del backend (Node.js): se conserva solo en la PC, no se versiona.
 _respaldo-backend-node/
