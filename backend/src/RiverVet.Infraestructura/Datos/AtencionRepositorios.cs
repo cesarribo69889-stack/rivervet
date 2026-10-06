@@ -13,7 +13,7 @@ public sealed class HistorialRepositorio(SesionBd sesion) : RepositorioBase(sesi
     private const string Consulta = """
         SELECT h.id, h.mascota_id AS mascotaId, h.veterinario_id AS veterinarioId, v.nombre AS veterinarioNombre,
                h.cita_id AS citaId, h.fecha_atencion AS fechaAtencion, h.motivo, h.diagnostico, h.tratamiento,
-               h.observaciones, h.peso_kg AS pesoKg, h.temperatura_c AS temperaturaC,
+               h.receta, h.observaciones, h.peso_kg AS pesoKg, h.temperatura_c AS temperaturaC,
                h.creado_en AS creadoEn, h.actualizado_en AS actualizadoEn
         FROM dbo.historial_clinico h
         JOIN dbo.usuarios v ON v.id = h.veterinario_id
@@ -42,10 +42,10 @@ public sealed class HistorialRepositorio(SesionBd sesion) : RepositorioBase(sesi
         return EscalarAsync<int>(
             """
             INSERT INTO dbo.historial_clinico (mascota_id, veterinario_id, cita_id, motivo, diagnostico, tratamiento,
-                                               observaciones, peso_kg, temperatura_c)
+                                               receta, observaciones, peso_kg, temperatura_c)
             OUTPUT INSERTED.id
             VALUES (@mascotaId, @veterinarioId, @citaId, @motivo, @diagnostico, @tratamiento,
-                    @observaciones, @pesoKg, @temperaturaC)
+                    @receta, @observaciones, @pesoKg, @temperaturaC)
             """,
             new
             {
@@ -55,6 +55,7 @@ public sealed class HistorialRepositorio(SesionBd sesion) : RepositorioBase(sesi
                 motivo = Unicode(datos.Motivo, 250),
                 diagnostico = Unicode(datos.Diagnostico, 1000),
                 tratamiento = Unicode(datos.Tratamiento, 1000),
+                receta = Unicode(datos.Receta, 2000),
                 observaciones = Unicode(datos.Observaciones, 2000),
                 pesoKg = datos.PesoKg,
                 temperaturaC = datos.TemperaturaC,
@@ -68,7 +69,7 @@ public sealed class HistorialRepositorio(SesionBd sesion) : RepositorioBase(sesi
         return await EjecutarAsync(
             """
             UPDATE dbo.historial_clinico
-            SET motivo = @motivo, diagnostico = @diagnostico, tratamiento = @tratamiento,
+            SET motivo = @motivo, diagnostico = @diagnostico, tratamiento = @tratamiento, receta = @receta,
                 observaciones = @observaciones, peso_kg = @pesoKg, temperatura_c = @temperaturaC,
                 actualizado_en = SYSUTCDATETIME()
             WHERE id = @id AND eliminado = 0
@@ -79,6 +80,7 @@ public sealed class HistorialRepositorio(SesionBd sesion) : RepositorioBase(sesi
                 motivo = Unicode(datos.Motivo, 250),
                 diagnostico = Unicode(datos.Diagnostico, 1000),
                 tratamiento = Unicode(datos.Tratamiento, 1000),
+                receta = Unicode(datos.Receta, 2000),
                 observaciones = Unicode(datos.Observaciones, 2000),
                 pesoKg = datos.PesoKg,
                 temperaturaC = datos.TemperaturaC,

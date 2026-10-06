@@ -25,6 +25,7 @@ public class Sprint2AmpliacionPruebas(FabricaApi fabrica)
         motivo = "Control",
         diagnostico,
         tratamiento = "Ninguno",
+        receta = "Amoxicilina 250 mg cada 12 h por 7 días <b>con comida</b>",
         observaciones = "Sin novedades",
         pesoKg = 5.5m,
         temperaturaC = 38.4m,
@@ -102,6 +103,8 @@ public class Sprint2AmpliacionPruebas(FabricaApi fabrica)
         creada.Estado.ShouldBe(HttpStatusCode.Created);
         var id = creada.Data.GetProperty("id").GetInt32();
         creada.Data.GetProperty("editado").GetBoolean().ShouldBeFalse();
+        // La receta se guarda sin HTML (XSS almacenado), igual que el resto del texto libre.
+        creada.Data.GetProperty("receta").GetString().ShouldBe("Amoxicilina 250 mg cada 12 h por 7 días con comida");
 
         var detalle = await _api.GetAsync($"/api/mascotas/{luna}/historial/{id}", vet.Token);
         detalle.Estado.ShouldBe(HttpStatusCode.OK);

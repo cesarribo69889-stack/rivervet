@@ -63,8 +63,8 @@ const CARPETAS = {
   'Historial clínico': [
     ['Listar (más reciente primero)', 'GET', '/mascotas/{{mascotaId}}/historial?orden=desc'],
     ['Detalle', 'GET', '/mascotas/{{mascotaId}}/historial/{{atencionId}}'],
-    ['Registrar atención (veterinario)', 'POST', '/mascotas/{{mascotaId}}/historial', { citaId: null, motivo: 'Control anual', diagnostico: 'Paciente sano', tratamiento: 'Desparasitación oral', observaciones: 'Próximo control en 6 meses', pesoKg: 12.5, temperaturaC: 38.5 }, 'Con citaId, la cita queda atendida.'],
-    ['Corregir (solo el veterinario autor)', 'PUT', '/mascotas/{{mascotaId}}/historial/{{atencionId}}', { motivo: 'Control anual', diagnostico: 'Otitis leve', tratamiento: 'Gotas óticas 7 días', observaciones: 'Control en 1 semana', pesoKg: 12.5, temperaturaC: 38.6 }],
+    ['Registrar atención (veterinario)', 'POST', '/mascotas/{{mascotaId}}/historial', { citaId: null, motivo: 'Control anual', diagnostico: 'Paciente sano', tratamiento: 'Desparasitación oral', receta: 'Antiparasitario oral: 1 tableta hoy y otra en 15 días', observaciones: 'Próximo control en 6 meses', pesoKg: 12.5, temperaturaC: 38.5 }, 'Con citaId, la cita queda atendida.'],
+    ['Corregir (solo el veterinario autor)', 'PUT', '/mascotas/{{mascotaId}}/historial/{{atencionId}}', { motivo: 'Control anual', diagnostico: 'Otitis leve', tratamiento: 'Gotas óticas 7 días', receta: 'Gotas óticas: 4 gotas cada 12 h por 7 días', observaciones: 'Control en 1 semana', pesoKg: 12.5, temperaturaC: 38.6 }],
     ['Eliminar (solo el veterinario autor, lógico)', 'DELETE', '/mascotas/{{mascotaId}}/historial/{{atencionId}}'],
   ],
   'Vacunas': [

@@ -159,10 +159,10 @@ public sealed class AtencionServicio(
     }
 
     private static object ContenidoClinico(RegistroHistorial r) =>
-        new { r.Motivo, r.Diagnostico, r.Tratamiento, r.Observaciones, r.PesoKg, r.TemperaturaC };
+        new { r.Motivo, r.Diagnostico, r.Tratamiento, r.Receta, r.Observaciones, r.PesoKg, r.TemperaturaC };
 
     private static object ContenidoClinico(DatosAtencionSolicitud s) =>
-        new { s.Motivo, s.Diagnostico, s.Tratamiento, s.Observaciones, s.PesoKg, s.TemperaturaC };
+        new { s.Motivo, s.Diagnostico, s.Tratamiento, s.Receta, s.Observaciones, s.PesoKg, s.TemperaturaC };
 
     public async Task<IReadOnlyList<RegistroVacuna>> ListarVacunasAsync(int mascotaId, CancellationToken ct = default)
     {

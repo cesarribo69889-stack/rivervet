@@ -24,6 +24,9 @@ public sealed class RegistroHistorial
 
     public string Tratamiento { get; init; } = string.Empty;
 
+    /// <summary>Medicamentos indicados (dosis y duración). Opcional.</summary>
+    public string? Receta { get; init; }
+
     public string? Observaciones { get; init; }
 
     public decimal? PesoKg { get; init; }
@@ -55,6 +58,8 @@ public abstract class DatosAtencionSolicitud : INormalizable
 
     public string? Tratamiento { get; set; }
 
+    public string? Receta { get; set; }
+
     public string? Observaciones { get; set; }
 
     public decimal? PesoKg { get; set; }
@@ -66,6 +71,7 @@ public abstract class DatosAtencionSolicitud : INormalizable
         Motivo = Texto.Libre(Motivo);
         Diagnostico = Texto.Libre(Diagnostico);
         Tratamiento = Texto.Libre(Tratamiento);
+        Receta = Texto.Libre(Receta);
         Observaciones = Texto.Libre(Observaciones);
     }
 }
@@ -96,6 +102,7 @@ public abstract class DatosAtencionValidador<T> : AbstractValidator<T>
         RuleFor(x => x.Motivo).NotEmpty().WithMessage("El motivo es obligatorio").MaximumLength(250).WithMessage("Máximo 250 caracteres");
         RuleFor(x => x.Diagnostico).NotEmpty().WithMessage("El diagnóstico es obligatorio").MaximumLength(1000).WithMessage("Máximo 1000 caracteres");
         RuleFor(x => x.Tratamiento).NotEmpty().WithMessage("El tratamiento es obligatorio").MaximumLength(1000).WithMessage("Máximo 1000 caracteres");
+        RuleFor(x => x.Receta).MaximumLength(2000).WithMessage("Máximo 2000 caracteres");
         RuleFor(x => x.Observaciones).MaximumLength(2000).WithMessage("Máximo 2000 caracteres");
         RuleFor(x => x.PesoKg)
             .GreaterThan(0).WithMessage("El peso debe ser mayor a 0")

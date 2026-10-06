@@ -527,6 +527,7 @@ Objeto `Atencion`:
   "id": 30, "mascotaId": 1, "veterinarioId": 2, "veterinarioNombre": "Dra. Carla López",
   "citaId": 12, "fechaAtencion": "2026-09-21T15:42:10.000Z",
   "motivo": "Control anual", "diagnostico": "Sano. Sarro leve.", "tratamiento": "Limpieza dental en 3 meses",
+  "receta": "Antiparasitario oral, 1 tableta hoy y otra en 15 días",
   "observaciones": null, "pesoKg": 18.7, "temperaturaC": 38.5,
   "creadoEn": "2026-09-21T15:42:10.000Z", "actualizadoEn": "2026-09-21T15:42:10.000Z", "editado": false
 }
@@ -551,6 +552,7 @@ Borrado lógico. **200** `{ "mensaje": "Atención eliminada" }`. **403**. **404*
   "motivo": "Control anual",
   "diagnostico": "Sano. Sarro leve.",
   "tratamiento": "Limpieza dental en 3 meses",
+  "receta": "Antiparasitario oral, 1 tableta hoy y otra en 15 días",
   "observaciones": "Muy tranquilo durante el examen",
   "pesoKg": 18.7,
   "temperaturaC": 38.5
@@ -562,6 +564,7 @@ Borrado lógico. **200** `{ "mensaje": "Atención eliminada" }`. **403**. **404*
 | `citaId` | opcional. Si viene, la cita debe ser **de esta mascota** y estar `programada`; pasa a `atendida` en la misma transacción |
 | `motivo` | obligatorio, máx. 250 |
 | `diagnostico`, `tratamiento` | obligatorios, máx. 1000 |
+| `receta` | opcional, máx. 2000: medicamentos con dosis y duración (desde la migración 0005) |
 | `observaciones` | opcional, máx. 2000 |
 | `pesoKg` | opcional, > 0, máx. 999.99, 2 decimales. Si viene, **actualiza el peso de la mascota** |
 | `temperaturaC` | opcional, 30 a 45, 1 decimal |
