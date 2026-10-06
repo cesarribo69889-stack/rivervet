@@ -4,13 +4,17 @@ using RiverVet.Aplicacion.Vacunas;
 
 namespace RiverVet.Infraestructura.Datos;
 
-/// <summary>Historial clínico (solo agregar: no hay UPDATE ni DELETE de atenciones).</summary>
+/// <summary>
+/// Historial clínico. Se corrige con UPDATE (queda actualizado_en y la auditoría
+/// guarda el antes y el después) y se elimina con borrado LÓGICO, nunca DELETE.
+/// </summary>
 public sealed class HistorialRepositorio(SesionBd sesion) : RepositorioBase(sesion), IHistorialRepositorio
 {
     private const string Consulta = """
         SELECT h.id, h.mascota_id AS mascotaId, h.veterinario_id AS veterinarioId, v.nombre AS veterinarioNombre,
                h.cita_id AS citaId, h.fecha_atencion AS fechaAtencion, h.motivo, h.diagnostico, h.tratamiento,
-               h.observaciones, h.peso_kg AS pesoKg, h.temperatura_c AS temperaturaC
+               h.observaciones, h.peso_kg AS pesoKg, h.temperatura_c AS temperaturaC,
+               h.creado_en AS creadoEn, h.actualizado_en AS actualizadoEn
         FROM dbo.historial_clinico h
         JOIN dbo.usuarios v ON v.id = h.veterinario_id
         """;
@@ -57,6 +61,39 @@ public sealed class HistorialRepositorio(SesionBd sesion) : RepositorioBase(sesi
             },
             ct);
     }
+
+    public async Task<bool> ActualizarAsync(int id, ActualizarAtencionSolicitud datos, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(datos);
+        return await EjecutarAsync(
+            """
+            UPDATE dbo.historial_clinico
+            SET motivo = @motivo, diagnostico = @diagnostico, tratamiento = @tratamiento,
+                observaciones = @observaciones, peso_kg = @pesoKg, temperatura_c = @temperaturaC,
+                actualizado_en = SYSUTCDATETIME()
+            WHERE id = @id AND eliminado = 0
+            """,
+            new
+            {
+                id,
+                motivo = Unicode(datos.Motivo, 250),
+                diagnostico = Unicode(datos.Diagnostico, 1000),
+                tratamiento = Unicode(datos.Tratamiento, 1000),
+                observaciones = Unicode(datos.Observaciones, 2000),
+                pesoKg = datos.PesoKg,
+                temperaturaC = datos.TemperaturaC,
+            },
+            ct) > 0;
+    }
+
+    public async Task<bool> EliminarAsync(int id, CancellationToken ct = default) =>
+        await EjecutarAsync(
+            """
+            UPDATE dbo.historial_clinico SET eliminado = 1, eliminado_en = SYSUTCDATETIME(), actualizado_en = SYSUTCDATETIME()
+            WHERE id = @id AND eliminado = 0
+            """,
+            new { id },
+            ct) > 0;
 }
 
 public sealed class VacunasRepositorio(SesionBd sesion) : RepositorioBase(sesion), IVacunasRepositorio
@@ -103,6 +140,34 @@ public sealed class VacunasRepositorio(SesionBd sesion) : RepositorioBase(sesion
             },
             ct);
     }
+
+    public async Task<bool> ActualizarAsync(int id, RegistrarVacunaSolicitud datos, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(datos);
+        return await EjecutarAsync(
+            """
+            UPDATE dbo.vacunas
+            SET tipo_vacuna = @tipo, fecha_aplicacion = CAST(@fechaAplicacion AS DATE), lote = @lote,
+                proxima_dosis = CAST(@proximaDosis AS DATE), observaciones = @observaciones
+            WHERE id = @id AND eliminado = 0
+            """,
+            new
+            {
+                id,
+                tipo = Unicode(datos.TipoVacuna, 100),
+                fechaAplicacion = Ascii(datos.FechaAplicacion, 10),
+                lote = Unicode(datos.Lote, 50),
+                proximaDosis = Ascii(datos.ProximaDosis, 10),
+                observaciones = Unicode(datos.Observaciones, 500),
+            },
+            ct) > 0;
+    }
+
+    public async Task<bool> EliminarAsync(int id, CancellationToken ct = default) =>
+        await EjecutarAsync(
+            "UPDATE dbo.vacunas SET eliminado = 1, eliminado_en = SYSUTCDATETIME() WHERE id = @id AND eliminado = 0",
+            new { id },
+            ct) > 0;
 }
 
 public sealed class RecordatoriosRepositorio(SesionBd sesion) : RepositorioBase(sesion), IRecordatoriosRepositorio

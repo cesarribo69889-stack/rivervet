@@ -27,7 +27,10 @@ public sealed class RegistroVacuna
     public DateTime CreadoEn { get; init; }
 }
 
-/// <summary>HU-011: registrar una vacuna aplicada.</summary>
+/// <summary>
+/// HU-011: registrar una vacuna aplicada. También es el cuerpo de la
+/// corrección (PUT): son los mismos datos con las mismas reglas.
+/// </summary>
 public sealed class RegistrarVacunaSolicitud : INormalizable
 {
     public string? TipoVacuna { get; set; }
@@ -79,4 +82,9 @@ public interface IVacunasRepositorio
     Task<RegistroVacuna?> ObtenerAsync(int id, CancellationToken ct = default);
 
     Task<int> InsertarAsync(int mascotaId, int veterinarioId, RegistrarVacunaSolicitud datos, CancellationToken ct = default);
+
+    Task<bool> ActualizarAsync(int id, RegistrarVacunaSolicitud datos, CancellationToken ct = default);
+
+    /// <summary>Borrado LÓGICO (eliminado = 1): deja de verse y de generar recordatorios.</summary>
+    Task<bool> EliminarAsync(int id, CancellationToken ct = default);
 }

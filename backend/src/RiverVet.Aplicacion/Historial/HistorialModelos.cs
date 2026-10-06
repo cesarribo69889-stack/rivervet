@@ -29,17 +29,26 @@ public sealed class RegistroHistorial
     public decimal? PesoKg { get; init; }
 
     public decimal? TemperaturaC { get; init; }
+
+    public DateTime CreadoEn { get; init; }
+
+    public DateTime ActualizadoEn { get; init; }
+
+    /// <summary>
+    /// true si se corrigió después de registrarla. Se muestra en la ficha: un
+    /// registro clínico editado no debe pasar por original. Al insertar, ambas
+    /// columnas reciben el mismo SYSUTCDATETIME() (DATETIME2(0)), así que
+    /// cualquier diferencia es una corrección.
+    /// </summary>
+    public bool Editado => ActualizadoEn > CreadoEn;
 }
 
 /// <summary>
-/// HU-006: registrar una atención. Todo el texto libre pasa por
-/// Texto.Libre (se eliminan etiquetas HTML: XSS almacenado). Si viene
-/// citaId, la cita queda marcada como atendida.
+/// Datos clínicos de una atención, comunes a registrar y a corregir. Todo el
+/// texto libre pasa por Texto.Libre (se eliminan etiquetas HTML: XSS almacenado).
 /// </summary>
-public sealed class RegistrarAtencionSolicitud : INormalizable
+public abstract class DatosAtencionSolicitud : INormalizable
 {
-    public int? CitaId { get; set; }
-
     public string? Motivo { get; set; }
 
     public string? Diagnostico { get; set; }
@@ -61,17 +70,29 @@ public sealed class RegistrarAtencionSolicitud : INormalizable
     }
 }
 
+/// <summary>HU-006: registrar una atención. Si viene citaId, la cita queda marcada como atendida.</summary>
+public sealed class RegistrarAtencionSolicitud : DatosAtencionSolicitud
+{
+    public int? CitaId { get; set; }
+}
+
+/// <summary>
+/// Corregir una atención. No lleva citaId: la cita que se atendió no cambia
+/// al corregir el diagnóstico.
+/// </summary>
+public sealed class ActualizarAtencionSolicitud : DatosAtencionSolicitud;
+
 public sealed class ConsultaHistorial
 {
     /// <summary>asc = cronológico (más antigua primero, por defecto); desc = más reciente primero.</summary>
     public string? Orden { get; set; }
 }
 
-public sealed class RegistrarAtencionValidador : AbstractValidator<RegistrarAtencionSolicitud>
+public abstract class DatosAtencionValidador<T> : AbstractValidator<T>
+    where T : DatosAtencionSolicitud
 {
-    public RegistrarAtencionValidador()
+    protected DatosAtencionValidador()
     {
-        RuleFor(x => x.CitaId).GreaterThan(0).When(x => x.CitaId is not null).WithMessage("Id inválido");
         RuleFor(x => x.Motivo).NotEmpty().WithMessage("El motivo es obligatorio").MaximumLength(250).WithMessage("Máximo 250 caracteres");
         RuleFor(x => x.Diagnostico).NotEmpty().WithMessage("El diagnóstico es obligatorio").MaximumLength(1000).WithMessage("Máximo 1000 caracteres");
         RuleFor(x => x.Tratamiento).NotEmpty().WithMessage("El tratamiento es obligatorio").MaximumLength(1000).WithMessage("Máximo 1000 caracteres");
@@ -88,6 +109,14 @@ public sealed class RegistrarAtencionValidador : AbstractValidator<RegistrarAten
     }
 }
 
+public sealed class RegistrarAtencionValidador : DatosAtencionValidador<RegistrarAtencionSolicitud>
+{
+    public RegistrarAtencionValidador() =>
+        RuleFor(x => x.CitaId).GreaterThan(0).When(x => x.CitaId is not null).WithMessage("Id inválido");
+}
+
+public sealed class ActualizarAtencionValidador : DatosAtencionValidador<ActualizarAtencionSolicitud>;
+
 public sealed class ConsultaHistorialValidador : AbstractValidator<ConsultaHistorial>
 {
     public ConsultaHistorialValidador() =>
@@ -101,4 +130,10 @@ public interface IHistorialRepositorio
     Task<RegistroHistorial?> ObtenerAsync(int id, CancellationToken ct = default);
 
     Task<int> InsertarAsync(int mascotaId, int veterinarioId, RegistrarAtencionSolicitud datos, CancellationToken ct = default);
+
+    /// <summary>false = ya no existe (otra persona la eliminó mientras tanto).</summary>
+    Task<bool> ActualizarAsync(int id, ActualizarAtencionSolicitud datos, CancellationToken ct = default);
+
+    /// <summary>Borrado LÓGICO: la fila queda (eliminado = 1) y la auditoría guarda el contenido.</summary>
+    Task<bool> EliminarAsync(int id, CancellationToken ct = default);
 }

@@ -10,9 +10,11 @@ namespace RiverVet.Aplicacion.Historial;
 /// <summary>
 /// Atención médica: historial clínico (HU-006, HU-007) y vacunas (HU-011).
 ///
-/// El historial es de SOLO-AGREGAR: no hay endpoint para editar ni borrar una
-/// atención. Un registro médico corregido se agrega como una nueva atención;
-/// así queda el rastro completo de lo que se diagnosticó y cuándo.
+/// Corregir o eliminar un registro clínico lo puede hacer SOLO el veterinario
+/// que lo firmó (es su acto médico; ni otro veterinario ni el admin). Y nunca
+/// se pierde el rastro: la corrección deja actualizado_en (la ficha muestra
+/// "editado"), la eliminación es lógica, y la auditoría guarda el contenido
+/// anterior en ambos casos.
 /// </summary>
 public sealed class AtencionServicio(
     IHistorialRepositorio historial,
@@ -95,6 +97,73 @@ public sealed class AtencionServicio(
         return await historial.ObtenerAsync(id, ct) ?? throw new NoEncontradoException("Atención no encontrada");
     }
 
+    public async Task<RegistroHistorial> ObtenerAtencionAsync(int mascotaId, int id, CancellationToken ct = default)
+    {
+        await VerificarMascotaAsync(mascotaId, ct);
+        return await AtencionDeLaMascotaAsync(mascotaId, id, ct);
+    }
+
+    public async Task<RegistroHistorial> ActualizarAtencionAsync(int mascotaId, int id, ActualizarAtencionSolicitud solicitud, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(solicitud);
+        await VerificarMascotaAsync(mascotaId, ct);
+        var antes = await AtencionDeLaMascotaAsync(mascotaId, id, ct);
+        VerificarAutor(antes.VeterinarioId, "la atención");
+
+        await using (var tx = await unidadTrabajo.IniciarTransaccionAsync(ct: ct))
+        {
+            if (!await historial.ActualizarAsync(id, solicitud, ct))
+            {
+                throw new NoEncontradoException("Atención no encontrada");
+            }
+            await auditoria.RegistrarAsync(
+                AccionesAuditoria.Actualizar, RecursosAuditoria.Historial, id,
+                new { mascotaId, antes = ContenidoClinico(antes), despues = ContenidoClinico(solicitud) }, ct: ct);
+            await tx.ConfirmarAsync(ct);
+        }
+        return await historial.ObtenerAsync(id, ct) ?? throw new NoEncontradoException("Atención no encontrada");
+    }
+
+    public async Task EliminarAtencionAsync(int mascotaId, int id, CancellationToken ct = default)
+    {
+        await VerificarMascotaAsync(mascotaId, ct);
+        var registro = await AtencionDeLaMascotaAsync(mascotaId, id, ct);
+        VerificarAutor(registro.VeterinarioId, "la atención");
+
+        await using var tx = await unidadTrabajo.IniciarTransaccionAsync(ct: ct);
+        if (!await historial.EliminarAsync(id, ct))
+        {
+            throw new NoEncontradoException("Atención no encontrada");
+        }
+        await auditoria.RegistrarAsync(
+            AccionesAuditoria.Eliminar, RecursosAuditoria.Historial, id,
+            new { mascotaId, registro.CitaId, contenido = ContenidoClinico(registro) }, ct: ct);
+        await tx.ConfirmarAsync(ct);
+    }
+
+    /// <summary>Una atención que exista y sea de ESTA mascota (la de otra mascota responde 404).</summary>
+    private async Task<RegistroHistorial> AtencionDeLaMascotaAsync(int mascotaId, int id, CancellationToken ct)
+    {
+        var registro = await historial.ObtenerAsync(id, ct);
+        return registro is not null && registro.MascotaId == mascotaId
+            ? registro
+            : throw new NoEncontradoException("Atención no encontrada");
+    }
+
+    private void VerificarAutor(int veterinarioId, string queCosa)
+    {
+        if (contexto.UsuarioId != veterinarioId)
+        {
+            throw new AccesoDenegadoException($"Solo el veterinario que registró {queCosa} puede corregirla o eliminarla");
+        }
+    }
+
+    private static object ContenidoClinico(RegistroHistorial r) =>
+        new { r.Motivo, r.Diagnostico, r.Tratamiento, r.Observaciones, r.PesoKg, r.TemperaturaC };
+
+    private static object ContenidoClinico(DatosAtencionSolicitud s) =>
+        new { s.Motivo, s.Diagnostico, s.Tratamiento, s.Observaciones, s.PesoKg, s.TemperaturaC };
+
     public async Task<IReadOnlyList<RegistroVacuna>> ListarVacunasAsync(int mascotaId, CancellationToken ct = default)
     {
         await VerificarMascotaAsync(mascotaId, ct);
@@ -118,5 +187,63 @@ public sealed class AtencionServicio(
             await tx.ConfirmarAsync(ct);
         }
         return await vacunas.ObtenerAsync(id, ct) ?? throw new NoEncontradoException("Vacuna no encontrada");
+    }
+
+    public async Task<RegistroVacuna> ObtenerVacunaAsync(int mascotaId, int id, CancellationToken ct = default)
+    {
+        await VerificarMascotaAsync(mascotaId, ct);
+        return await VacunaDeLaMascotaAsync(mascotaId, id, ct);
+    }
+
+    public async Task<RegistroVacuna> ActualizarVacunaAsync(int mascotaId, int id, RegistrarVacunaSolicitud solicitud, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(solicitud);
+        await VerificarMascotaAsync(mascotaId, ct);
+        var antes = await VacunaDeLaMascotaAsync(mascotaId, id, ct);
+        VerificarAutor(antes.VeterinarioId, "la vacuna");
+
+        await using (var tx = await unidadTrabajo.IniciarTransaccionAsync(ct: ct))
+        {
+            if (!await vacunas.ActualizarAsync(id, solicitud, ct))
+            {
+                throw new NoEncontradoException("Vacuna no encontrada");
+            }
+            await auditoria.RegistrarAsync(
+                AccionesAuditoria.Actualizar, RecursosAuditoria.Vacuna, id,
+                new
+                {
+                    mascotaId,
+                    antes = new { antes.TipoVacuna, antes.FechaAplicacion, antes.Lote, antes.ProximaDosis },
+                    despues = new { solicitud.TipoVacuna, solicitud.FechaAplicacion, solicitud.Lote, solicitud.ProximaDosis },
+                },
+                ct: ct);
+            await tx.ConfirmarAsync(ct);
+        }
+        return await vacunas.ObtenerAsync(id, ct) ?? throw new NoEncontradoException("Vacuna no encontrada");
+    }
+
+    public async Task EliminarVacunaAsync(int mascotaId, int id, CancellationToken ct = default)
+    {
+        await VerificarMascotaAsync(mascotaId, ct);
+        var registro = await VacunaDeLaMascotaAsync(mascotaId, id, ct);
+        VerificarAutor(registro.VeterinarioId, "la vacuna");
+
+        await using var tx = await unidadTrabajo.IniciarTransaccionAsync(ct: ct);
+        if (!await vacunas.EliminarAsync(id, ct))
+        {
+            throw new NoEncontradoException("Vacuna no encontrada");
+        }
+        await auditoria.RegistrarAsync(
+            AccionesAuditoria.Eliminar, RecursosAuditoria.Vacuna, id,
+            new { mascotaId, registro.TipoVacuna, registro.FechaAplicacion, registro.Lote }, ct: ct);
+        await tx.ConfirmarAsync(ct);
+    }
+
+    private async Task<RegistroVacuna> VacunaDeLaMascotaAsync(int mascotaId, int id, CancellationToken ct)
+    {
+        var registro = await vacunas.ObtenerAsync(id, ct);
+        return registro is not null && registro.MascotaId == mascotaId
+            ? registro
+            : throw new NoEncontradoException("Vacuna no encontrada");
     }
 }

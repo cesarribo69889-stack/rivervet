@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using RiverVet.Aplicacion.Abstracciones;
+using RiverVet.Aplicacion.Tablero;
 using RiverVet.Aplicacion.Auditoria;
 using RiverVet.Aplicacion.Autenticacion;
 using RiverVet.Aplicacion.Citas;
@@ -47,6 +48,7 @@ public static class InyeccionDependencias
         servicios.AddScoped<IHistorialRepositorio, HistorialRepositorio>();
         servicios.AddScoped<IVacunasRepositorio, VacunasRepositorio>();
         servicios.AddScoped<IRecordatoriosRepositorio, RecordatoriosRepositorio>();
+        servicios.AddScoped<ITableroRepositorio, TableroRepositorio>();
         servicios.AddScoped<ICategoriasRepositorio, CategoriasRepositorio>();
         servicios.AddScoped<IProductosRepositorio, ProductosRepositorio>();
         servicios.AddScoped<ICarritoRepositorio, CarritoRepositorio>();

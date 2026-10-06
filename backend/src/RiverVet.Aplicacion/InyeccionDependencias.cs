@@ -13,6 +13,7 @@ using RiverVet.Aplicacion.Mascotas;
 using RiverVet.Aplicacion.Pagos;
 using RiverVet.Aplicacion.Productos;
 using RiverVet.Aplicacion.Recordatorios;
+using RiverVet.Aplicacion.Tablero;
 using RiverVet.Aplicacion.Usuarios;
 using RiverVet.Aplicacion.Ventas;
 
@@ -34,6 +35,7 @@ public static class InyeccionDependencias
         servicios.AddScoped<CitasServicio>();
         servicios.AddScoped<AtencionServicio>();
         servicios.AddScoped<RecordatoriosServicio>();
+        servicios.AddScoped<TableroServicio>();
         servicios.AddScoped<ProductosServicio>();
         servicios.AddScoped<CarritoServicio>();
         servicios.AddScoped<PedidosServicio>();

@@ -24,19 +24,55 @@ public sealed class CitasServicio(
     /// <summary>
     /// Calendario. Sin fechas: desde hoy y 30 días hacia adelante. Un cliente
     /// solo recibe las citas de SUS mascotas (filtro en el SQL).
+    ///
+    /// Con mascotaId y sin fechas se devuelve su historia: el último año y
+    /// todo lo agendado (hasta el máximo de anticipación).
     /// </summary>
     public Task<IReadOnlyList<CitaRespuesta>> ListarAsync(ConsultaCitas consulta, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(consulta);
-        var desde = HoraLima.LeerFecha(consulta.Desde) ?? HoraLima.Hoy();
-        var hasta = HoraLima.LeerFecha(consulta.Hasta) ?? desde.AddDays(30);
+        var hoy = HoraLima.Hoy();
+        var porMascota = consulta.MascotaId is not null && consulta.Desde is null && consulta.Hasta is null;
+        var desde = HoraLima.LeerFecha(consulta.Desde) ?? (porMascota ? hoy.AddDays(-365) : hoy);
+        var hasta = HoraLima.LeerFecha(consulta.Hasta) ?? (porMascota ? hoy.AddDays(HorarioAtencion.DiasMaximosAnticipacion) : desde.AddDays(30));
         return citas.ListarAsync(
             HoraLima.InicioDelDiaUtc(desde),
             HoraLima.InicioDelDiaUtc(hasta.AddDays(1)),
             consulta.VeterinarioId,
+            consulta.MascotaId,
             consulta.Estado,
             contexto.PropietarioId,
             ct);
+    }
+
+    /// <summary>
+    /// Cierra como inasistencia una cita programada cuya hora ya pasó. Junto
+    /// con "atendida" (que se marca al registrar la atención), es la otra
+    /// forma de cerrar una cita: así el calendario no arrastra citas abiertas.
+    /// </summary>
+    public async Task<CitaRespuesta> MarcarNoAsistioAsync(int id, CancellationToken ct = default)
+    {
+        var actual = await citas.ObtenerAsync(id, null, ct) ?? throw new NoEncontradoException(NoEncontrada);
+        if (actual.Estado != EstadosCita.Programada)
+        {
+            throw new ConflictoException("Solo se registra la inasistencia de una cita programada");
+        }
+        if (actual.FechaHora > HoraLima.AhoraUtc())
+        {
+            throw new ConflictoException("La cita aún no llega: la inasistencia se registra después de su hora");
+        }
+
+        await using (var tx = await unidadTrabajo.IniciarTransaccionAsync(ct: ct))
+        {
+            if (!await citas.MarcarNoAsistioAsync(id, ct))
+            {
+                throw new ConflictoException("La cita cambió de estado. Vuelve a cargarla.");
+            }
+            await auditoria.RegistrarAsync(
+                AccionesAuditoria.Actualizar, RecursosAuditoria.Cita, id, new { estado = EstadosCita.NoAsistio }, ct: ct);
+            await tx.ConfirmarAsync(ct);
+        }
+        return await citas.ObtenerAsync(id, null, ct) ?? throw new NoEncontradoException(NoEncontrada);
     }
 
     public async Task<CitaRespuesta> ObtenerAsync(int id, CancellationToken ct = default) =>

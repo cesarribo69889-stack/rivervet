@@ -17,18 +17,19 @@ public sealed class CitasRepositorio(SesionBd sesion) : RepositorioBase(sesion),
         """;
 
     public Task<IReadOnlyList<CitaRespuesta>> ListarAsync(
-        DateTime desdeUtc, DateTime hastaUtc, int? veterinarioId, string? estado, int? propietarioId, CancellationToken ct = default) =>
+        DateTime desdeUtc, DateTime hastaUtc, int? veterinarioId, int? mascotaId, string? estado, int? propietarioId, CancellationToken ct = default) =>
         ConsultarAsync<CitaRespuesta>(
             $"""
             {Consulta}
             WHERE ci.eliminado = 0
               AND ci.fecha_hora >= @desde AND ci.fecha_hora < @hasta
               AND (@veterinarioId IS NULL OR ci.veterinario_id = @veterinarioId)
+              AND (@mascotaId IS NULL OR ci.mascota_id = @mascotaId)
               AND (@estado IS NULL OR ci.estado = @estado)
               AND (@propietarioId IS NULL OR c.usuario_id = @propietarioId)
             ORDER BY ci.fecha_hora, v.nombre
             """,
-            new { desde = desdeUtc, hasta = hastaUtc, veterinarioId, estado = Ascii(estado, 15), propietarioId },
+            new { desde = desdeUtc, hasta = hastaUtc, veterinarioId, mascotaId, estado = Ascii(estado, 15), propietarioId },
             ct);
 
     public Task<CitaRespuesta?> ObtenerAsync(int id, int? propietarioId, CancellationToken ct = default) =>
@@ -114,4 +115,15 @@ public sealed class CitasRepositorio(SesionBd sesion) : RepositorioBase(sesion),
             "UPDATE dbo.citas SET estado = 'atendida', actualizado_en = SYSUTCDATETIME() WHERE id = @citaId",
             new { citaId },
             ct);
+
+    // Las condiciones van en el WHERE (no solo en el servicio): si dos personas
+    // la cierran a la vez, una sola actualización gana.
+    public async Task<bool> MarcarNoAsistioAsync(int citaId, CancellationToken ct = default) =>
+        await EjecutarAsync(
+            """
+            UPDATE dbo.citas SET estado = 'no_asistio', actualizado_en = SYSUTCDATETIME()
+            WHERE id = @citaId AND estado = 'programada' AND eliminado = 0 AND fecha_hora <= SYSUTCDATETIME()
+            """,
+            new { citaId },
+            ct) > 0;
 }

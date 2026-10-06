@@ -93,6 +93,9 @@ public sealed class ConsultaCitas : INormalizable
 
     public int? VeterinarioId { get; set; }
 
+    /// <summary>Citas de una mascota (también por ruta: GET /api/citas/mascota/{id}).</summary>
+    public int? MascotaId { get; set; }
+
     public string? Estado { get; set; }
 
     public void Normalizar()
@@ -193,6 +196,7 @@ public sealed class ConsultaCitasValidador : AbstractValidator<ConsultaCitas>
         RuleFor(x => x.Hasta).Must(d => HoraLima.LeerFecha(d) is not null).When(x => x.Hasta is not null).WithMessage("Fecha inválida (AAAA-MM-DD)");
         RuleFor(x => x.Estado).Must(e => e is null || EstadosCita.Todos.Contains(e)).WithMessage("Estado inválido");
         RuleFor(x => x.VeterinarioId).GreaterThan(0).When(x => x.VeterinarioId is not null).WithMessage("Id inválido");
+        RuleFor(x => x.MascotaId).GreaterThan(0).When(x => x.MascotaId is not null).WithMessage("Id inválido");
         RuleFor(x => x).Custom((c, ctx) =>
         {
             if (HoraLima.LeerFecha(c.Desde) is DateOnly desde && HoraLima.LeerFecha(c.Hasta) is DateOnly hasta)
@@ -229,7 +233,7 @@ public sealed record CitaParaAtencion(int Id, string Estado);
 public interface ICitasRepositorio
 {
     Task<IReadOnlyList<CitaRespuesta>> ListarAsync(
-        DateTime desdeUtc, DateTime hastaUtc, int? veterinarioId, string? estado, int? propietarioId, CancellationToken ct = default);
+        DateTime desdeUtc, DateTime hastaUtc, int? veterinarioId, int? mascotaId, string? estado, int? propietarioId, CancellationToken ct = default);
 
     Task<CitaRespuesta?> ObtenerAsync(int id, int? propietarioId, CancellationToken ct = default);
 
@@ -247,4 +251,7 @@ public interface ICitasRepositorio
     Task<CitaParaAtencion?> ObtenerParaAtencionAsync(int citaId, int mascotaId, CancellationToken ct = default);
 
     Task MarcarAtendidaAsync(int citaId, CancellationToken ct = default);
+
+    /// <summary>Programada → no_asistio, solo si su hora ya pasó. false = cambió de estado o aún no llega.</summary>
+    Task<bool> MarcarNoAsistioAsync(int citaId, CancellationToken ct = default);
 }
