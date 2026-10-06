@@ -76,9 +76,12 @@ public class Sprint2AmpliacionPruebas(FabricaApi fabrica)
 
         (await _api.PostAsync($"/api/citas/{citaId}/no-asistio", null, recepcion.Token)).Estado.ShouldBe(HttpStatusCode.Conflict);
 
-        // Se lleva la cita al pasado (la API no deja agendar en el pasado).
+        // Se lleva la cita al pasado (la API no deja agendar en el pasado), a un
+        // bloque de :00 o :30 exactos: CK_citas_bloque rechaza cualquier otra hora.
+        var ahora = DateTime.UtcNow;
+        var bloquePasado = new DateTime(ahora.Year, ahora.Month, ahora.Day, ahora.Hour, ahora.Minute >= 30 ? 30 : 0, 0, DateTimeKind.Utc).AddHours(-2);
         await fabrica.EscalarAsync<int>(
-            "UPDATE citas SET fecha_hora = DATEADD(MINUTE, -90, SYSUTCDATETIME()) WHERE id = @id; SELECT 1", ("@id", citaId));
+            "UPDATE citas SET fecha_hora = @f WHERE id = @id; SELECT 1", ("@f", bloquePasado), ("@id", citaId));
 
         (await _api.PostAsync($"/api/citas/{citaId}/no-asistio", null, vet.Token)).Estado.ShouldBe(HttpStatusCode.Forbidden);
         var r = await _api.PostAsync($"/api/citas/{citaId}/no-asistio", null, recepcion.Token);
@@ -122,7 +125,7 @@ public class Sprint2AmpliacionPruebas(FabricaApi fabrica)
         (await _api.DeleteAsync($"/api/mascotas/{luna}/historial/{id}", vet.Token)).Estado.ShouldBe(HttpStatusCode.OK);
         (await _api.GetAsync($"/api/mascotas/{luna}/historial/{id}", vet.Token)).Estado.ShouldBe(HttpStatusCode.NotFound);
         Ids(await _api.GetAsync($"/api/mascotas/{luna}/historial", vet.Token)).ShouldNotContain(id);
-        (await fabrica.EscalarAsync<int>("SELECT eliminado FROM historial_clinico WHERE id = @id", ("@id", id))).ShouldBe(1);
+        (await fabrica.EscalarAsync<bool>("SELECT eliminado FROM historial_clinico WHERE id = @id", ("@id", id))).ShouldBeTrue(); // BIT
     }
 
     [Fact]
