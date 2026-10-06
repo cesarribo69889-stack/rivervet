@@ -8,8 +8,8 @@
 --
 -- Reemplaza las dos contraseñas antes de ejecutarlo y NO guardes el archivo
 -- modificado. Esas mismas contraseñas van en:
---   - GitHub Secrets (AZURE_SQL_MIGRADOR_PASSWORD) -> para las migraciones en CD
---   - Variables de entorno de Render (DB_PASSWORD) -> para la app
+--   - GitHub Secrets (AZURE_SQL_MIGRADOR_CONNECTION_STRING) -> migraciones en el CD
+--   - App Service, variable ConnectionStrings__RiverVet -> para la app
 --
 -- IMPORTANTE — orden en Azure (el bloque 2 apunta a tablas que crean las
 -- migraciones, así que no puede ir antes):
