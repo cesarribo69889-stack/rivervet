@@ -428,9 +428,13 @@ Calendario. Todos los filtros son opcionales:
 |---|---|
 | `desde`, `hasta` | `AAAA-MM-DD` (días de Lima, ambos incluidos). Sin `desde` = hoy; sin `hasta` = `desde` + 30 días. Rango máximo 93 días |
 | `veterinarioId` | solo las de ese veterinario (p. ej. "mis citas" del veterinario con su propio id) |
+| `mascotaId` | solo las de esa mascota. Si además no vienen fechas: su último año y todo lo agendado |
 | `estado` | uno de los 4 estados |
 
 Un `cliente` recibe **solo las citas de sus mascotas**. **200**: arreglo de `Cita` ordenado por fecha (no paginado: el rango ya lo acota). **422** si un filtro es inválido.
+
+### `GET /citas/mascota/:mascotaId` y `GET /citas/veterinario/:veterinarioId` — los 4 roles
+Atajos del contrato del Sprint 2: equivalen a `GET /citas?mascotaId=` y `GET /citas?veterinarioId=` y aceptan los mismos filtros. Un `cliente` solo ve las de sus mascotas: con una ajena recibe un arreglo vacío.
 
 ### `GET /citas/disponibilidad?veterinarioId=2&fecha=2026-09-21` — personal
 Bloques de un día para un veterinario.
@@ -498,6 +502,11 @@ Los tres campos son obligatorios (mismas reglas que el POST). La mascota **no** 
 | 409 `"La cita ya está cancelada"` | estado `cancelada` |
 | 409 `"La cita ya pasó: no se puede cancelar"` | la hora de la cita ya pasó |
 
+### `POST /citas/:id/no-asistio` — admin, recepcionista
+Cierra como **inasistencia** una cita `programada` cuya hora ya pasó (sin cuerpo). La otra forma de cerrarla es registrar su atención en el historial con `citaId`, que la deja `atendida`.
+
+**200**: `Cita` en estado `no_asistio`. **409** si no está `programada` o si su hora aún no llega. **403** para veterinario y cliente.
+
 ### `GET /veterinarios` — personal
 Veterinarios activos, para el selector al agendar. **200**:
 ```json
@@ -508,9 +517,9 @@ Veterinarios activos, para el selector al agendar. **200**:
 
 ## 9. Historial clínico y vacunas — HU-006, HU-007 y HU-011
 
-El historial médico es de **solo agregar**: no hay `PUT` ni `DELETE`. Si una atención tiene un error, se registra otra atención que lo corrige. Así queda el rastro completo de qué se diagnosticó y cuándo.
+Una atención o una vacuna **solo la corrige o la elimina el veterinario que la registró**: es su acto médico (otro veterinario o el admin reciben **403**). Nunca se pierde el rastro: la corrección deja `actualizadoEn` y `editado: true`, la eliminación es **lógica** (la fila queda con `eliminado = 1`) y la auditoría guarda el contenido anterior en ambos casos.
 
-En los 4 endpoints, `:id` es la mascota. Un `cliente` solo accede a **sus** mascotas: con una ajena recibe **404**.
+En todos los endpoints, `:id` es la mascota. Un `cliente` solo accede a **sus** mascotas: con una ajena recibe **404**. Una atención o vacuna que exista pero sea de otra mascota también responde **404**.
 
 Objeto `Atencion`:
 ```json
@@ -518,12 +527,22 @@ Objeto `Atencion`:
   "id": 30, "mascotaId": 1, "veterinarioId": 2, "veterinarioNombre": "Dra. Carla López",
   "citaId": 12, "fechaAtencion": "2026-09-21T15:42:10.000Z",
   "motivo": "Control anual", "diagnostico": "Sano. Sarro leve.", "tratamiento": "Limpieza dental en 3 meses",
-  "observaciones": null, "pesoKg": 18.7, "temperaturaC": 38.5
+  "observaciones": null, "pesoKg": 18.7, "temperaturaC": 38.5,
+  "creadoEn": "2026-09-21T15:42:10.000Z", "actualizadoEn": "2026-09-21T15:42:10.000Z", "editado": false
 }
 ```
 
 ### `GET /mascotas/:id/historial?orden=asc` — los 4 roles — HU-007
 `orden`: `asc` (más antigua primero, por defecto) o `desc` (más reciente primero). **200**: arreglo de `Atencion`. **404**. **422** si `orden` es otro valor.
+
+### `GET /mascotas/:id/historial/:atencionId` — los 4 roles
+**200**: `Atencion`. **404**.
+
+### `PUT /mascotas/:id/historial/:atencionId` — el veterinario que la registró
+Mismo cuerpo y reglas que el `POST`, **sin** `citaId` (la cita atendida no cambia). **200**: `Atencion` con `editado: true`. **403** si es otro usuario. **404**. **422**.
+
+### `DELETE /mascotas/:id/historial/:atencionId` — el veterinario que la registró
+Borrado lógico. **200** `{ "mensaje": "Atención eliminada" }`. **403**. **404**.
 
 ### `POST /mascotas/:id/historial` — veterinario — HU-006
 ```json
@@ -588,6 +607,15 @@ En todo el texto se eliminan las etiquetas HTML. El veterinario que atiende es e
 | `observaciones` | opcional, máx. 500 |
 
 **201**: `Vacuna`. **404**. **422**.
+
+### `GET /mascotas/:id/vacunas/:vacunaId` — los 4 roles
+**200**: `Vacuna`. **404**.
+
+### `PUT /mascotas/:id/vacunas/:vacunaId` — el veterinario que la registró
+Mismo cuerpo y reglas que el `POST`. **200**: `Vacuna`. **403**. **404**. **422**.
+
+### `DELETE /mascotas/:id/vacunas/:vacunaId` — el veterinario que la registró
+Borrado lógico: deja de listarse y de generar recordatorios. **200** `{ "mensaje": "Vacuna eliminada" }`. **403**. **404**.
 
 ---
 
@@ -862,6 +890,34 @@ Periodo en días de Lima, de máximo 366 días. Sin fechas: del día 1 del mes a
 - `productosMasVendidos`: los 5 con más unidades vendidas.
 
 **403** para los otros roles. **422** si el periodo es inválido.
+
+### Tablero del personal — `/dashboard` (Sprint 2) — admin, recepcionista, veterinario
+Lo que se mira a diario en recepción y en consulta. Las ventas no están aquí: siguen en `/indicadores`, solo admin.
+
+#### `GET /dashboard/stats`
+```json
+{
+  "success": true,
+  "data": {
+    "fecha": "2026-10-06",
+    "citasHoy": 9, "citasHoyAtendidas": 4,
+    "citasPendientes": 23, "citasSinCerrar": 1,
+    "citasAtendidasMes": 18, "clientesNuevosMes": 5,
+    "vacunasPorVencer": 7, "vacunasUrgentes": 2
+  }
+}
+```
+- `citasHoy`: las de hoy que no se cancelaron. `citasPendientes`: programadas desde ahora.
+- `citasSinCerrar`: programadas cuya hora ya pasó; falta registrar su atención o la inasistencia.
+- `vacunasPorVencer` / `vacunasUrgentes`: próxima dosis en 30 / 7 días, contando solo la última aplicación de cada tipo (igual que los recordatorios).
+
+#### `GET /dashboard/citas-hoy` y `GET /dashboard/citas-semana`
+Arreglo de `Cita` de hoy o de lunes a domingo de esta semana; equivalen a `GET /citas` con esas fechas.
+
+**403** para el cliente.
+
+### Colección de Postman
+`docs/RiverVet.postman_collection.json`, con los entornos `RiverVet.local` y `RiverVet.produccion`. Se regenera con `node herramientas/generar-coleccion-postman.mjs` después de agregar un endpoint.
 
 ---
 

@@ -1,7 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using RiverVet.Aplicacion.Abstracciones;
-using RiverVet.Aplicacion.Tablero;
 using RiverVet.Aplicacion.Auditoria;
 using RiverVet.Aplicacion.Autenticacion;
 using RiverVet.Aplicacion.Citas;
@@ -14,6 +13,7 @@ using RiverVet.Aplicacion.Mascotas;
 using RiverVet.Aplicacion.Pagos;
 using RiverVet.Aplicacion.Productos;
 using RiverVet.Aplicacion.Recordatorios;
+using RiverVet.Aplicacion.Tablero;
 using RiverVet.Aplicacion.Usuarios;
 using RiverVet.Aplicacion.Vacunas;
 using RiverVet.Aplicacion.Ventas;
