@@ -45,4 +45,5 @@ public static class RecursosAuditoria
     public const string Pago = "pago";
     public const string Comprobante = "comprobante";
     public const string DatosPersonales = "datos_personales";
+    public const string ConfiguracionPagos = "configuracion_pagos";
 }

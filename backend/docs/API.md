@@ -942,7 +942,27 @@ Objeto `Pago` (dentro de `Pedido.pagos`):
 ### 15.1 Yape por QR (HU-017)
 
 **`GET /pagos/yape`** — admin, recepcionista, cliente
-**200** `{ "celular": "987000111", "titular": "RiverVet SAC", "instrucciones": ["..."] }`. **503** si Yape no está configurado.
+**200** `{ "celular": "987000111", "titular": "RiverVet SAC", "tieneQr": true, "qrVersion": "20261008150000", "instrucciones": ["..."] }`. **503** si Yape no está configurado.
+
+Los datos salen de "Métodos de pago" del panel (tabla `configuracion_yape`, migración 0006). Mientras el administrador no guarde un número, rigen las variables del App Service `Pagos__Yape__Celular` y `Pagos__Yape__Titular`.
+
+**`GET /pagos/yape/qr`** — **público** (lo pide un `<img>`, que no envía el token)
+**200** la imagen (`image/png`, `image/jpeg` o `image/webp`) con `Cache-Control: public, max-age=86400`. La web la pide con `?v={qrVersion}`, que cambia al subir otra. **404** si no hay QR.
+
+**`GET /pagos/yape/configuracion`** — admin
+**200** `{ "celular": "987000111", "titular": "RiverVet SAC", "habilitado": true, "tieneQr": false, "qrVersion": null }` (aunque Yape no esté configurado).
+
+**`PUT /pagos/yape/configuracion`** — admin
+```json
+{ "celular": "987 000 111", "titular": "RiverVet SAC" }
+```
+El celular se guarda sin espacios: 9 dígitos y empieza con 9. El titular es el nombre que el cliente ve al pagar (solo letras, espacios, apóstrofos y guiones; máximo 100). **200** como el GET. Queda en la auditoría con el valor anterior.
+
+**`PUT /pagos/yape/qr`** — admin
+```json
+{ "imagen": "data:image/png;base64,iVBORw0KGgo..." }
+```
+PNG, JPG o WEBP de hasta **500 KB**. Se comprueban los primeros bytes: un archivo que no es la imagen que dice ser se rechaza con **422**. **200** como el GET de configuración.
 
 **`POST /pedidos/:id/pagos/yape`** — cliente (sus pedidos) o recepción
 ```json

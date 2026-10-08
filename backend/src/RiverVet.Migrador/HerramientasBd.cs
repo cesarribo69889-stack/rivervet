@@ -105,7 +105,7 @@ public static partial class HerramientasBd
         "usuarios", "refresh_tokens", "auditoria", "clientes", "mascotas",
         "citas", "historial_clinico", "vacunas",
         "categorias", "productos", "carritos", "carrito_items", "pedidos", "pedido_items",
-        "pagos", "webhook_eventos", "envios_comprobante", "migraciones_aplicadas",
+        "pagos", "webhook_eventos", "envios_comprobante", "configuracion_yape", "migraciones_aplicadas",
     ];
 
     private static readonly (string Tipo, string Nombre, string Motivo)[] _restriccionesCriticas =

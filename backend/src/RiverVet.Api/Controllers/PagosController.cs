@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RiverVet.Aplicacion.Comprobantes;
+using RiverVet.Aplicacion.Comun;
 using RiverVet.Aplicacion.Pagos;
 using RiverVet.Dominio.Constantes;
 
@@ -44,16 +45,48 @@ public sealed class PagosPedidoController(PagosServicio pagos, ComprobantesServi
 /// <summary>
 /// Pagos — /api/pagos
 ///
-///  GET   /yape             admin, recepcionista, cliente   celular y titular del Yape del negocio
-///  GET   /pendientes       admin, recepcionista            Yapes por verificar
-///  POST  /{id}/verificar   admin, recepcionista            { aprobado, observacion }
+///  GET   /yape                admin, recepcionista, cliente   celular, titular y si hay QR
+///  GET   /yape/qr             público                         imagen del QR (la muestra un &lt;img&gt;)
+///  GET   /yape/configuracion  admin                           "Métodos de pago" del panel
+///  PUT   /yape/configuracion  admin                           { celular, titular }
+///  PUT   /yape/qr             admin                           { imagen: "data:image/png;base64,..." }
+///  GET   /pendientes          admin, recepcionista            Yapes por verificar
+///  POST  /{id}/verificar      admin, recepcionista            { aprobado, observacion }
 /// </summary>
 [Route("api/pagos")]
-public sealed class PagosController(PagosServicio servicio) : ApiControllerBase
+public sealed class PagosController(PagosServicio servicio, ConfiguracionYapeServicio configuracionYape) : ApiControllerBase
 {
     [HttpGet("yape")]
     [Authorize(Roles = Roles.VentasYCliente)]
-    public IActionResult DatosYape() => Exito(servicio.DatosYape());
+    public async Task<IActionResult> DatosYape(CancellationToken ct) => Exito(await servicio.DatosYapeAsync(ct));
+
+    /// <summary>
+    /// Público: un &lt;img&gt; no envía el token, y el QR del negocio está hecho
+    /// para mostrarse a cualquiera que vaya a pagar. Se puede guardar en caché
+    /// porque la web lo pide con ?v=versión, que cambia al subir otro.
+    /// </summary>
+    [HttpGet("yape/qr")]
+    [AllowAnonymous]
+    public async Task<IActionResult> QrYape(CancellationToken ct)
+    {
+        var qr = await configuracionYape.QrAsync(ct) ?? throw new NoEncontradoException("No hay QR de Yape");
+        Response.Headers.CacheControl = "public, max-age=86400";
+        return File(qr.Contenido, qr.Tipo);
+    }
+
+    [HttpGet("yape/configuracion")]
+    [Authorize(Roles = Roles.Admin)]
+    public async Task<IActionResult> ConfiguracionYape(CancellationToken ct) => Exito(await configuracionYape.ObtenerAsync(ct));
+
+    [HttpPut("yape/configuracion")]
+    [Authorize(Roles = Roles.Admin)]
+    public async Task<IActionResult> ActualizarYape([FromBody] ActualizarYapeSolicitud solicitud, CancellationToken ct) =>
+        Exito(await configuracionYape.ActualizarAsync(solicitud, ct));
+
+    [HttpPut("yape/qr")]
+    [Authorize(Roles = Roles.Admin)]
+    public async Task<IActionResult> SubirQrYape([FromBody] SubirQrYapeSolicitud solicitud, CancellationToken ct) =>
+        Exito(await configuracionYape.SubirQrAsync(solicitud, ct));
 
     [HttpGet("pendientes")]
     [Authorize(Roles = Roles.AdminORecepcion)]

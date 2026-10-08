@@ -29,6 +29,7 @@ public sealed class PagosServicio(
     IContextoPeticion contexto,
     IValidator<EventoPasarela> validadorEvento,
     IOptions<OpcionesPagos> opciones,
+    ConfiguracionYapeServicio configuracionYape,
     TimeProvider reloj,
     ILogger<PagosServicio> logger)
 {
@@ -45,15 +46,15 @@ public sealed class PagosServicio(
 
     // ── Yape (HU-017) ─────────────────────────────────────────────────────
 
-    /// <summary>Número y titular del Yape del negocio, para mostrar junto al QR.</summary>
-    public DatosYapeRespuesta DatosYape()
+    /// <summary>Número, titular y QR del Yape del negocio (los del panel o, si no hay, los del App Service).</summary>
+    public async Task<DatosYapeRespuesta> DatosYapeAsync(CancellationToken ct = default)
     {
-        var yape = Opciones.Yape;
+        var yape = await configuracionYape.VigenteAsync(ct);
         if (!yape.Habilitado)
         {
             throw new ServicioNoDisponibleException("El pago con Yape no está habilitado");
         }
-        return new DatosYapeRespuesta(yape.Celular!, yape.Titular,
+        return new DatosYapeRespuesta(yape.Celular!, yape.Titular, yape.TieneQr, yape.QrVersion,
         [
             "Abre Yape y escanea el QR de RiverVet o yapea al celular indicado.",
             "Paga EXACTAMENTE el total de tu pedido.",
@@ -71,7 +72,7 @@ public sealed class PagosServicio(
     public async Task<PedidoRespuesta> RegistrarYapeAsync(int pedidoId, RegistrarYapeSolicitud solicitud, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(solicitud);
-        if (!Opciones.Yape.Habilitado)
+        if (!(await configuracionYape.VigenteAsync(ct)).Habilitado)
         {
             throw new ServicioNoDisponibleException("El pago con Yape no está habilitado");
         }

@@ -106,6 +106,10 @@ const CARPETAS = {
   ],
   'Pagos': [
     ['Datos de Yape', 'GET', '/pagos/yape'],
+    ['QR de Yape (público)', 'GET', '/pagos/yape/qr'],
+    ['Métodos de pago: ver Yape (admin)', 'GET', '/pagos/yape/configuracion'],
+    ['Métodos de pago: cambiar número y titular (admin)', 'PUT', '/pagos/yape/configuracion', { celular: '987000111', titular: 'RiverVet SAC' }],
+    ['Métodos de pago: subir QR (admin)', 'PUT', '/pagos/yape/qr', { imagen: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==' }, 'PNG, JPG o WEBP de hasta 500 KB, como data URL.'],
     ['Pagar con Yape (cliente)', 'POST', '/pedidos/{{pedidoId}}/pagos/yape', { codigoOperacion: 'ABC123456' }],
     ['Pagar con tarjeta (cliente)', 'POST', '/pedidos/{{pedidoId}}/pagos/pasarela', null, 'Devuelve la URL del checkout hospedado de la pasarela.'],
     ['Cobro en efectivo (recepción)', 'POST', '/pedidos/{{pedidoId}}/pagos/efectivo'],
@@ -125,7 +129,7 @@ const CARPETAS = {
 // Las peticiones públicas no llevan el token (así se prueba también que lo son).
 const PUBLICAS = new Set([
   'GET /health', 'POST /auth/login', 'GET /triage/sintomas', 'POST /triage',
-  'GET /categorias', 'GET /productos', 'GET /productos/{{productoId}}',
+  'GET /categorias', 'GET /productos', 'GET /productos/{{productoId}}', 'GET /pagos/yape/qr',
 ]);
 
 // Los ids van como variables; en el JSON del cuerpo se escriben sin comillas.

@@ -1795,6 +1795,110 @@
           }
         },
         {
+          "name": "QR de Yape (público)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pagos/yape/qr",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pagos",
+                "yape",
+                "qr"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Métodos de pago: ver Yape (admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pagos/yape/configuracion",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pagos",
+                "yape",
+                "configuracion"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Métodos de pago: cambiar número y titular (admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pagos/yape/configuracion",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pagos",
+                "yape",
+                "configuracion"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"celular\": \"987000111\",\n  \"titular\": \"RiverVet SAC\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Métodos de pago: subir QR (admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pagos/yape/qr",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pagos",
+                "yape",
+                "qr"
+              ]
+            },
+            "description": "PNG, JPG o WEBP de hasta 500 KB, como data URL.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"imagen\": \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
           "name": "Pagar con Yape (cliente)",
           "request": {
             "method": "POST",

@@ -55,6 +55,7 @@ public static class InyeccionDependencias
         servicios.AddScoped<IPedidosRepositorio, PedidosRepositorio>();
         servicios.AddScoped<IIndicadoresRepositorio, IndicadoresRepositorio>();
         servicios.AddScoped<IPagosRepositorio, PagosRepositorio>();
+        servicios.AddScoped<IConfiguracionYapeRepositorio, ConfiguracionYapeRepositorio>();
         servicios.AddScoped<IComprobantesRepositorio, ComprobantesRepositorio>();
         servicios.AddScoped<IExportacionRepositorio, ExportacionRepositorio>();
 

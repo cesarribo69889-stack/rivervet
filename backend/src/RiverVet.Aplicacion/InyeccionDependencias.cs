@@ -41,6 +41,7 @@ public static class InyeccionDependencias
         servicios.AddScoped<PedidosServicio>();
         servicios.AddScoped<IndicadoresServicio>();
         servicios.AddScoped<PagosServicio>();
+        servicios.AddScoped<ConfiguracionYapeServicio>();
         servicios.AddScoped<ComprobantesServicio>();
         servicios.AddScoped<ExportacionServicio>();
         // Reloj inyectable: las pruebas pueden fijar la hora (p. ej. webhooks vencidos).

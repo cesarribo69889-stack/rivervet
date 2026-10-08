@@ -85,7 +85,12 @@ public sealed class VerificarPagoValidador : AbstractValidator<VerificarPagoSoli
     }
 }
 
-public sealed record DatosYapeRespuesta(string Celular, string? Titular, IReadOnlyList<string> Instrucciones);
+/// <summary>
+/// Datos para pagar con Yape. Si hay QR, la web lo pide a GET /api/pagos/yape/qr
+/// con ?v=<paramref name="QrVersion"/>: la versión cambia al subir otro y evita
+/// que el navegador muestre el anterior guardado en caché.
+/// </summary>
+public sealed record DatosYapeRespuesta(string Celular, string? Titular, bool TieneQr, string? QrVersion, IReadOnlyList<string> Instrucciones);
 
 public sealed record CheckoutRespuesta(int PagoId, string Referencia, Uri UrlCheckout);
 
