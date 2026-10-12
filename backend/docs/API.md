@@ -517,7 +517,7 @@ Veterinarios activos, para el selector al agendar. **200**:
 
 ## 9. Historial clínico y vacunas — HU-006, HU-007 y HU-011
 
-Una atención o una vacuna **solo la corrige o la elimina el veterinario que la registró**: es su acto médico (otro veterinario o el admin reciben **403**). Nunca se pierde el rastro: la corrección deja `actualizadoEn` y `editado: true`, la eliminación es **lógica** (la fila queda con `eliminado = 1`) y la auditoría guarda el contenido anterior en ambos casos.
+Una atención o una vacuna la registran el **veterinario** y el **admin** (dueño de la clínica; así lo piden HU-006 y HU-011). **La corrige o la elimina quien la registró o el admin**: otro veterinario recibe **403**, y el autor no cambia aunque la corrija el admin. Nunca se pierde el rastro: la corrección deja `actualizadoEn` y `editado: true`, la eliminación es **lógica** (la fila queda con `eliminado = 1`) y la auditoría guarda el contenido anterior en ambos casos.
 
 En todos los endpoints, `:id` es la mascota. Un `cliente` solo accede a **sus** mascotas: con una ajena recibe **404**. Una atención o vacuna que exista pero sea de otra mascota también responde **404**.
 
@@ -539,13 +539,13 @@ Objeto `Atencion`:
 ### `GET /mascotas/:id/historial/:atencionId` — los 4 roles
 **200**: `Atencion`. **404**.
 
-### `PUT /mascotas/:id/historial/:atencionId` — el veterinario que la registró
+### `PUT /mascotas/:id/historial/:atencionId` — quien la registró o el admin
 Mismo cuerpo y reglas que el `POST`, **sin** `citaId` (la cita atendida no cambia). **200**: `Atencion` con `editado: true`. **403** si es otro usuario. **404**. **422**.
 
-### `DELETE /mascotas/:id/historial/:atencionId` — el veterinario que la registró
+### `DELETE /mascotas/:id/historial/:atencionId` — quien la registró o el admin
 Borrado lógico. **200** `{ "mensaje": "Atención eliminada" }`. **403**. **404**.
 
-### `POST /mascotas/:id/historial` — veterinario — HU-006
+### `POST /mascotas/:id/historial` — veterinario, admin — HU-006
 ```json
 {
   "citaId": 12,
@@ -590,7 +590,7 @@ En todo el texto se eliminan las etiquetas HTML. El veterinario que atiende es e
 }
 ```
 
-### `POST /mascotas/:id/vacunas` — veterinario — HU-011
+### `POST /mascotas/:id/vacunas` — veterinario, admin — HU-011
 ```json
 {
   "tipoVacuna": "Antirrábica",
@@ -614,10 +614,10 @@ En todo el texto se eliminan las etiquetas HTML. El veterinario que atiende es e
 ### `GET /mascotas/:id/vacunas/:vacunaId` — los 4 roles
 **200**: `Vacuna`. **404**.
 
-### `PUT /mascotas/:id/vacunas/:vacunaId` — el veterinario que la registró
+### `PUT /mascotas/:id/vacunas/:vacunaId` — quien la registró o el admin
 Mismo cuerpo y reglas que el `POST`. **200**: `Vacuna`. **403**. **404**. **422**.
 
-### `DELETE /mascotas/:id/vacunas/:vacunaId` — el veterinario que la registró
+### `DELETE /mascotas/:id/vacunas/:vacunaId` — quien la registró o el admin
 Borrado lógico: deja de listarse y de generar recordatorios. **200** `{ "mensaje": "Vacuna eliminada" }`. **403**. **404**.
 
 ---

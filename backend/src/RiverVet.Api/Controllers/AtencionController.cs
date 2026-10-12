@@ -13,17 +13,17 @@ namespace RiverVet.Api.Controllers;
 ///  Método  Ruta                                   Roles
 ///  GET     /api/mascotas/{id}/historial           los 4 roles (cliente: solo sus mascotas)
 ///  GET     /api/mascotas/{id}/historial/{aid}     los 4 roles (detalle)
-///  POST    /api/mascotas/{id}/historial           veterinario
-///  PUT     /api/mascotas/{id}/historial/{aid}     el veterinario que la registró
-///  DELETE  /api/mascotas/{id}/historial/{aid}     el veterinario que la registró (borrado lógico)
+///  POST    /api/mascotas/{id}/historial           veterinario, admin
+///  PUT     /api/mascotas/{id}/historial/{aid}     quien la registró o el admin
+///  DELETE  /api/mascotas/{id}/historial/{aid}     quien la registró o el admin (borrado lógico)
 ///  GET     /api/mascotas/{id}/vacunas             los 4 roles (cliente: solo sus mascotas)
 ///  GET     /api/mascotas/{id}/vacunas/{vid}       los 4 roles (detalle)
-///  POST    /api/mascotas/{id}/vacunas             veterinario
-///  PUT     /api/mascotas/{id}/vacunas/{vid}       el veterinario que la registró
-///  DELETE  /api/mascotas/{id}/vacunas/{vid}       el veterinario que la registró (borrado lógico)
+///  POST    /api/mascotas/{id}/vacunas             veterinario, admin
+///  PUT     /api/mascotas/{id}/vacunas/{vid}       quien la registró o el admin
+///  DELETE  /api/mascotas/{id}/vacunas/{vid}       quien la registró o el admin (borrado lógico)
 ///
-/// "El que la registró" se comprueba en el servicio (403 si es otro). Toda
-/// corrección o eliminación queda en la auditoría con el contenido anterior.
+/// "Quien la registró" se comprueba en el servicio (403 si es otro veterinario).
+/// Toda corrección o eliminación queda en la auditoría con el contenido anterior.
 /// </summary>
 [Route("api/mascotas/{mascotaId}")]
 public sealed class AtencionController(AtencionServicio servicio) : ApiControllerBase
@@ -34,7 +34,7 @@ public sealed class AtencionController(AtencionServicio servicio) : ApiControlle
         Exito(await servicio.ListarHistorialAsync(mascotaId, consulta, ct));
 
     [HttpPost("historial")]
-    [Authorize(Roles = Roles.Veterinario)]
+    [Authorize(Roles = Roles.Clinico)]
     public async Task<IActionResult> RegistrarAtencion(int mascotaId, [FromBody] RegistrarAtencionSolicitud solicitud, CancellationToken ct) =>
         Creado(await servicio.RegistrarAtencionAsync(mascotaId, solicitud, ct));
 
@@ -44,12 +44,12 @@ public sealed class AtencionController(AtencionServicio servicio) : ApiControlle
         Exito(await servicio.ObtenerAtencionAsync(mascotaId, id, ct));
 
     [HttpPut("historial/{id:int}")]
-    [Authorize(Roles = Roles.Veterinario)]
+    [Authorize(Roles = Roles.Clinico)]
     public async Task<IActionResult> ActualizarAtencion(int mascotaId, int id, [FromBody] ActualizarAtencionSolicitud solicitud, CancellationToken ct) =>
         Exito(await servicio.ActualizarAtencionAsync(mascotaId, id, solicitud, ct));
 
     [HttpDelete("historial/{id:int}")]
-    [Authorize(Roles = Roles.Veterinario)]
+    [Authorize(Roles = Roles.Clinico)]
     public async Task<IActionResult> EliminarAtencion(int mascotaId, int id, CancellationToken ct)
     {
         await servicio.EliminarAtencionAsync(mascotaId, id, ct);
@@ -62,7 +62,7 @@ public sealed class AtencionController(AtencionServicio servicio) : ApiControlle
         Exito(await servicio.ListarVacunasAsync(mascotaId, ct));
 
     [HttpPost("vacunas")]
-    [Authorize(Roles = Roles.Veterinario)]
+    [Authorize(Roles = Roles.Clinico)]
     public async Task<IActionResult> RegistrarVacuna(int mascotaId, [FromBody] RegistrarVacunaSolicitud solicitud, CancellationToken ct) =>
         Creado(await servicio.RegistrarVacunaAsync(mascotaId, solicitud, ct));
 
@@ -72,12 +72,12 @@ public sealed class AtencionController(AtencionServicio servicio) : ApiControlle
         Exito(await servicio.ObtenerVacunaAsync(mascotaId, id, ct));
 
     [HttpPut("vacunas/{id:int}")]
-    [Authorize(Roles = Roles.Veterinario)]
+    [Authorize(Roles = Roles.Clinico)]
     public async Task<IActionResult> ActualizarVacuna(int mascotaId, int id, [FromBody] RegistrarVacunaSolicitud solicitud, CancellationToken ct) =>
         Exito(await servicio.ActualizarVacunaAsync(mascotaId, id, solicitud, ct));
 
     [HttpDelete("vacunas/{id:int}")]
-    [Authorize(Roles = Roles.Veterinario)]
+    [Authorize(Roles = Roles.Clinico)]
     public async Task<IActionResult> EliminarVacuna(int mascotaId, int id, CancellationToken ct)
     {
         await servicio.EliminarVacunaAsync(mascotaId, id, ct);

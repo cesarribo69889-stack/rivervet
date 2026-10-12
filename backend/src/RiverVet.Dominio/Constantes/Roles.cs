@@ -15,6 +15,9 @@ public static class Roles
     public const string Personal = Admin + "," + Veterinario + "," + Recepcionista;
     public const string Todos = Personal + "," + Cliente;
 
+    /// <summary>Registran atenciones y vacunas: el veterinario y el admin (dueño de la clínica).</summary>
+    public const string Clinico = Admin + "," + Veterinario;
+
     /// <summary>Ventas: recepción y admin gestionan; el cliente ve y opera lo suyo.</summary>
     public const string VentasYCliente = AdminORecepcion + "," + Cliente;
 

@@ -73,16 +73,27 @@ public class AtencionPruebas(FabricaApi fabrica)
     }
 
     [Fact]
-    public async Task RBAC_solo_el_veterinario_registra_atenciones_y_vacunas()
+    public async Task RBAC_registran_atenciones_y_vacunas_el_veterinario_y_el_admin()
     {
         var mishi = await MascotaAsync("Mishi");
-        foreach (var email in new[] { Usuarios.Recepcionista, Usuarios.Admin, Usuarios.Ana })
+        foreach (var email in new[] { Usuarios.Recepcionista, Usuarios.Ana })
         {
             var sesion = await _api.IniciarSesionAsync(email);
             (await _api.PostAsync($"/api/mascotas/{mishi}/historial", Atencion(), sesion.Token)).Estado.ShouldBe(HttpStatusCode.Forbidden);
             (await _api.PostAsync($"/api/mascotas/{mishi}/vacunas", new { tipoVacuna = "Triple felina", fechaAplicacion = Dia(0), lote = "L1" }, sesion.Token))
                 .Estado.ShouldBe(HttpStatusCode.Forbidden);
         }
+
+        // El admin es el dueño de la clínica: también registra (HU-006 y HU-011),
+        // y queda como autor. Se eliminan al final para no tocar otras pruebas.
+        var admin = await _api.IniciarSesionAsync(Usuarios.Admin);
+        var atencion = await _api.PostAsync($"/api/mascotas/{mishi}/historial", Atencion(), admin.Token);
+        atencion.Estado.ShouldBe(HttpStatusCode.Created);
+        atencion.Data.GetProperty("veterinarioId").GetInt32().ShouldBe(admin.UsuarioId);
+        var vacuna = await _api.PostAsync($"/api/mascotas/{mishi}/vacunas", new { tipoVacuna = "Vacuna de prueba del admin", fechaAplicacion = Dia(0), lote = "L1" }, admin.Token);
+        vacuna.Estado.ShouldBe(HttpStatusCode.Created);
+        (await _api.DeleteAsync($"/api/mascotas/{mishi}/historial/{atencion.Data.GetProperty("id").GetInt32()}", admin.Token)).Estado.ShouldBe(HttpStatusCode.OK);
+        (await _api.DeleteAsync($"/api/mascotas/{mishi}/vacunas/{vacuna.Data.GetProperty("id").GetInt32()}", admin.Token)).Estado.ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]

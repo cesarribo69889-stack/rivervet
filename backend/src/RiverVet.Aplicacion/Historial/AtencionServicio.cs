@@ -10,11 +10,12 @@ namespace RiverVet.Aplicacion.Historial;
 /// <summary>
 /// Atención médica: historial clínico (HU-006, HU-007) y vacunas (HU-011).
 ///
-/// Corregir o eliminar un registro clínico lo puede hacer SOLO el veterinario
-/// que lo firmó (es su acto médico; ni otro veterinario ni el admin). Y nunca
-/// se pierde el rastro: la corrección deja actualizado_en (la ficha muestra
-/// "editado"), la eliminación es lógica, y la auditoría guarda el contenido
-/// anterior en ambos casos.
+/// Registran el veterinario y el administrador (el dueño de la clínica; así lo
+/// piden HU-006 y HU-011). Corregir o eliminar un registro clínico lo puede
+/// hacer el veterinario que lo firmó (otro veterinario no) o el administrador.
+/// Y nunca se pierde el rastro: la corrección deja actualizado_en (la ficha
+/// muestra "editado"), la eliminación es lógica, y la auditoría guarda el
+/// contenido anterior y quién lo cambió en ambos casos.
 /// </summary>
 public sealed class AtencionServicio(
     IHistorialRepositorio historial,
@@ -152,9 +153,9 @@ public sealed class AtencionServicio(
 
     private void VerificarAutor(int veterinarioId, string queCosa)
     {
-        if (contexto.UsuarioId != veterinarioId)
+        if (contexto.UsuarioId != veterinarioId && contexto.Rol != Roles.Admin)
         {
-            throw new AccesoDenegadoException($"Solo el veterinario que registró {queCosa} puede corregirla o eliminarla");
+            throw new AccesoDenegadoException($"Solo quien registró {queCosa} o el administrador puede corregirla o eliminarla");
         }
     }
 

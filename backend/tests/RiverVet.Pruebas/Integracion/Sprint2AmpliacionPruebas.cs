@@ -122,7 +122,7 @@ public class Sprint2AmpliacionPruebas(FabricaApi fabrica)
         editada.Data.GetProperty("editado").GetBoolean().ShouldBeTrue();
         (await fabrica.EscalarAsync<int>(
             "SELECT COUNT(*) FROM auditoria WHERE accion = 'ACTUALIZAR' AND recurso = 'historial' AND recurso_id = @id AND detalle LIKE '%Paciente sano%'",
-            ("@id", id))).ShouldBe(1);
+            ("@id", id.ToString(System.Globalization.CultureInfo.InvariantCulture)))).ShouldBe(1);
 
         (await _api.DeleteAsync($"/api/mascotas/{luna}/historial/{id}", otro.Token)).Estado.ShouldBe(HttpStatusCode.Forbidden);
         (await _api.DeleteAsync($"/api/mascotas/{luna}/historial/{id}", vet.Token)).Estado.ShouldBe(HttpStatusCode.OK);
@@ -141,6 +141,33 @@ public class Sprint2AmpliacionPruebas(FabricaApi fabrica)
         var ajena = await MascotaAsync("Rocky");
         (await _api.GetAsync($"/api/mascotas/{ajena}/historial/{id}", vet.Token)).Estado.ShouldBe(HttpStatusCode.NotFound);
         (await _api.PutAsync($"/api/mascotas/{ajena}/historial/{id}", Atencion("x"), vet.Token)).Estado.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task El_admin_corrige_y_elimina_atenciones_y_vacunas_de_cualquier_veterinario()
+    {
+        var vet = await _api.IniciarSesionAsync(Usuarios.Veterinario);
+        var admin = await _api.IniciarSesionAsync(Usuarios.Admin);
+        var firulais = await MascotaAsync("Firulais");
+
+        var atencion = await _api.PostAsync($"/api/mascotas/{firulais}/historial", Atencion(), vet.Token);
+        var aid = atencion.Data.GetProperty("id").GetInt32();
+        var editada = await _api.PutAsync($"/api/mascotas/{firulais}/historial/{aid}", Atencion("Corregido por el admin"), admin.Token);
+        editada.Estado.ShouldBe(HttpStatusCode.OK);
+        editada.Data.GetProperty("diagnostico").GetString().ShouldBe("Corregido por el admin");
+        editada.Data.GetProperty("veterinarioId").GetInt32().ShouldBe(vet.UsuarioId); // el autor no cambia
+        (await fabrica.EscalarAsync<int>(
+            "SELECT COUNT(*) FROM auditoria WHERE accion = 'ACTUALIZAR' AND recurso = 'historial' AND recurso_id = @id AND usuario_id = @admin",
+            ("@id", aid.ToString(System.Globalization.CultureInfo.InvariantCulture)), ("@admin", admin.UsuarioId))).ShouldBe(1);
+        (await _api.DeleteAsync($"/api/mascotas/{firulais}/historial/{aid}", admin.Token)).Estado.ShouldBe(HttpStatusCode.OK);
+        (await _api.GetAsync($"/api/mascotas/{firulais}/historial/{aid}", vet.Token)).Estado.ShouldBe(HttpStatusCode.NotFound);
+
+        var vacuna = await _api.PostAsync($"/api/mascotas/{firulais}/vacunas", Vacuna(), vet.Token);
+        var vid = vacuna.Data.GetProperty("id").GetInt32();
+        var corregida = await _api.PutAsync($"/api/mascotas/{firulais}/vacunas/{vid}", Vacuna("LT-ADMIN"), admin.Token);
+        corregida.Estado.ShouldBe(HttpStatusCode.OK);
+        corregida.Data.GetProperty("lote").GetString().ShouldBe("LT-ADMIN");
+        (await _api.DeleteAsync($"/api/mascotas/{firulais}/vacunas/{vid}", admin.Token)).Estado.ShouldBe(HttpStatusCode.OK);
     }
 
     // ── Vacunas ───────────────────────────────────────────────────────────
